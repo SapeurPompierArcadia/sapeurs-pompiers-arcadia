@@ -1758,20 +1758,15 @@
       </div>
 
       <!-- Stats rapides -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:20px;">
         <div style="background:#1a2235;border:1px solid #1e293b;border-radius:10px;padding:16px 18px;">
           <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Total patients</div>
           <div id="patients-total" style="font-size:26px;font-weight:700;color:#fff;">0</div>
         </div>
-        <div style="background:#1a2235;border:1px solid #1e293b;border-radius:10px;padding:16px 18px;">
-          <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">En cours de traitement</div>
-          <div id="patients-en-cours" style="font-size:26px;font-weight:700;color:#6366f1;">0</div>
-        </div>
-        <div style="background:#1a2235;border:1px solid #1e293b;border-radius:10px;padding:16px 18px;">
-          <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Libérés / Transférés</div>
-          <div id="patients-liberes" style="font-size:26px;font-weight:700;color:#10b981;">0</div>
-        </div>
       </div>
+      <!-- éléments cachés pour éviter les erreurs JS -->
+      <div id="patients-en-cours" style="display:none;"></div>
+      <div id="patients-liberes" style="display:none;"></div>
 
       <!-- Liste patients -->
       <div class="punch-section-card">
