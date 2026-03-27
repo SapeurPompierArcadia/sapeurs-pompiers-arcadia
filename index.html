@@ -3144,7 +3144,12 @@
   }
 
   async function deleteMember(userId) {
-    if (!confirm('Supprimer ce membre définitivement ?')) return;
+    if (!confirm('Supprimer ce membre définitivement ? Toutes ses données (services, patients) seront supprimées.')) return;
+    // Supprimer les shifts
+    await supa.from('shifts').delete().eq('user_id', userId);
+    // Supprimer les patients (les bilans seront supprimés en cascade via FK)
+    await supa.from('patients').delete().eq('user_id', userId);
+    // Supprimer le membre
     const { error } = await supa.from('users').delete().eq('id', userId);
     if (error) { alert('Erreur : ' + error.message); return; }
     loadAdminUsers();
