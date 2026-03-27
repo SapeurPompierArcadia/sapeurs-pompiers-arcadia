@@ -3096,6 +3096,13 @@
                 cursor:pointer;font-family:inherit;">
                 🎖️ Spécialisations
               </button>
+              ${isSelf ? '' : `
+              <button onclick="deleteMember('${u.id}')"
+                style="width:30px;height:30px;padding:0;background:rgba(239,68,68,.12);
+                border:1px solid rgba(239,68,68,.3);border-radius:7px;color:#ef4444;
+                font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+                display:flex;align-items:center;justify-content:center;"
+                title="Supprimer ce membre">✕</button>`}
             </div>
           </div>
           <div id="specs-${uid}" style="display:none;padding:10px 16px 14px;border-top:1px solid #1e293b;">
@@ -3133,6 +3140,13 @@
     const newRole = isAdmin ? 'user' : 'admin';
     const { error } = await supa.from('users').update({ role: newRole }).eq('id', userId);
     if (error) { alert('Erreur : ' + error.message); if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; } return; }
+    loadAdminUsers();
+  }
+
+  async function deleteMember(userId) {
+    if (!confirm('Supprimer ce membre définitivement ?')) return;
+    const { error } = await supa.from('users').delete().eq('id', userId);
+    if (error) { alert('Erreur : ' + error.message); return; }
     loadAdminUsers();
   }
 
