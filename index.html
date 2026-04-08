@@ -994,20 +994,27 @@
         </div>
       </div>
 
+      <!-- Navigation semaine -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
+        <button onclick="changeRecapWeek(-1)"
+          style="padding:8px 18px;background:#1e293b;border:1px solid #334155;border-radius:8px;
+          color:#e2e8f0;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">
+          ← Semaine préc.
+        </button>
+        <span id="recap-nav-label" style="font-size:13px;font-weight:700;color:#94a3b8;
+          min-width:160px;text-align:center;background:#1e293b;border:1px solid #334155;
+          border-radius:8px;padding:8px 16px;">Semaine actuelle</span>
+        <button onclick="changeRecapWeek(1)" id="recap-nav-next"
+          style="padding:8px 18px;background:#1e293b;border:1px solid #334155;border-radius:8px;
+          color:#e2e8f0;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+          opacity:.3;pointer-events:none;">
+          Semaine suiv. →
+        </button>
+      </div>
+
       <!-- Récap hebdo par personne -->
       <div class="punch-section-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          <div class="punch-section-title" style="margin-bottom:0;"><span>👥</span> Récap hebdomadaire par agent</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <button onclick="changeRecapWeek(-1)"
-              style="width:30px;height:30px;background:#1e293b;border:1px solid #334155;border-radius:7px;
-              color:#94a3b8;font-size:16px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;">‹</button>
-            <span id="recap-nav-label" style="font-size:12px;font-weight:600;color:#94a3b8;min-width:140px;text-align:center;">Semaine actuelle</span>
-            <button onclick="changeRecapWeek(1)" id="recap-nav-next"
-              style="width:30px;height:30px;background:#1e293b;border:1px solid #334155;border-radius:7px;
-              color:#94a3b8;font-size:16px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;">›</button>
-          </div>
-        </div>
+        <div class="punch-section-title" style="margin-bottom:10px;"><span>👥</span> Récap hebdomadaire par agent</div>
 
         <!-- Header tableau -->
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;
