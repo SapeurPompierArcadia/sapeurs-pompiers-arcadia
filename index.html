@@ -996,7 +996,18 @@
 
       <!-- Récap hebdo par personne -->
       <div class="punch-section-card">
-        <div class="punch-section-title"><span>👥</span> Récap hebdomadaire par agent</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div class="punch-section-title" style="margin-bottom:0;"><span>👥</span> Récap hebdomadaire par agent</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="changeRecapWeek(-1)"
+              style="width:30px;height:30px;background:#1e293b;border:1px solid #334155;border-radius:7px;
+              color:#94a3b8;font-size:16px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;">‹</button>
+            <span id="recap-nav-label" style="font-size:12px;font-weight:600;color:#94a3b8;min-width:140px;text-align:center;">Semaine actuelle</span>
+            <button onclick="changeRecapWeek(1)" id="recap-nav-next"
+              style="width:30px;height:30px;background:#1e293b;border:1px solid #334155;border-radius:7px;
+              color:#94a3b8;font-size:16px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;">›</button>
+          </div>
+        </div>
 
         <!-- Header tableau -->
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;
@@ -2471,6 +2482,9 @@
       // Mettre à jour le badge statut sur l'accueil
       const badge = document.querySelector('.status-row .badge-hors');
       if (badge) { badge.textContent = 'EN SERVICE'; badge.className = 'badge-service'; }
+
+      // Vérifier immédiatement si un auto punch-out est nécessaire
+      checkAutoPunchOut();
     } else if (!activeShift && isPunched) {
       // Shift supprimé côté serveur (admin) — sortir du service localement
       clearInterval(punchTimer);
@@ -3069,6 +3083,14 @@
   // ── RECAP TOUS AGENTS (ADMIN) ──
   let allShiftsByUser = {};
 
+  let recapWeekOffset = 0;
+
+  function changeRecapWeek(delta) {
+    recapWeekOffset += delta;
+    if (recapWeekOffset > 0) recapWeekOffset = 0;
+    loadAllAgentsRecap();
+  }
+
   async function loadAllAgentsRecap() {
     const rowsAll = document.getElementById('recap-rows-all');
     if (!rowsAll) return;
@@ -3077,12 +3099,29 @@
     const { data: users } = await supa.from('users').select('id,prenom,nom,email,grade').order('prenom');
 
     const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + recapWeekOffset * 7);
     startOfWeek.setHours(0,0,0,0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    // Mise à jour du label de semaine
+    const labelEl = document.getElementById('recap-nav-label');
+    const nextBtn  = document.getElementById('recap-nav-next');
+    if (labelEl) {
+      if (recapWeekOffset === 0) {
+        labelEl.textContent = 'Semaine actuelle';
+      } else {
+        const fmt = d => d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+        labelEl.textContent = `${fmt(startOfWeek)} – ${fmt(new Date(endOfWeek.getTime() - 1))}`;
+      }
+    }
+    if (nextBtn) nextBtn.style.opacity = recapWeekOffset === 0 ? '.3' : '1';
+    if (nextBtn) nextBtn.style.pointerEvents = recapWeekOffset === 0 ? 'none' : 'auto';
 
     const { data: shifts } = await supa.from('shifts')
       .select('id,user_id,start_time,end_time,duration_minutes')
       .gte('start_time', startOfWeek.toISOString())
+      .lt('start_time', endOfWeek.toISOString())
       .order('start_time', { ascending: false });
 
     if (!users || users.length === 0) {
@@ -3261,9 +3300,50 @@
   }
 
   // ── CLOCK ──
+  // ── AUTO PUNCH-OUT 2h / 8h / 14h / 20h ──
+  const AUTO_PUNCH_HOURS = [2, 8, 14, 20];
+
+  function getLastScheduledCutoff() {
+    const now = new Date();
+    for (let i = AUTO_PUNCH_HOURS.length - 1; i >= 0; i--) {
+      const t = new Date(now);
+      t.setHours(AUTO_PUNCH_HOURS[i], 0, 0, 0);
+      if (t <= now) return t;
+    }
+    const t = new Date(now);
+    t.setDate(t.getDate() - 1);
+    t.setHours(20, 0, 0, 0);
+    return t;
+  }
+
+  async function checkAutoPunchOut() {
+    if (!isPunched || !currentShiftId || !punchStart) return;
+    const cutoff = getLastScheduledCutoff();
+    if (punchStart >= cutoff) return;
+    // Le service a dépassé une heure limite → punch-out automatique à cette heure
+    const diff = Math.round((cutoff - punchStart) / 60000);
+    clearInterval(punchTimer);
+    isPunched = false;
+    const sid = currentShiftId;
+    currentShiftId = null;
+    await supa.from('shifts').update({
+      end_time: cutoff.toISOString(),
+      duration_minutes: diff
+    }).eq('id', sid);
+    const panelHors    = document.getElementById('panel-hors');
+    const panelService = document.getElementById('panel-en-service');
+    if (panelHors)    panelHors.style.display    = 'block';
+    if (panelService) panelService.style.display = 'none';
+    const badge = document.querySelector('.status-row .badge-service');
+    if (badge) { badge.textContent = 'HORS SERVICE'; badge.className = 'badge-hors'; }
+    updateSpList();
+    await loadShifts();
+  }
+
   function startClock() {
     updateClock();
     setInterval(updateClock, 1000);
+    setInterval(checkAutoPunchOut, 60000); // vérifie toutes les minutes
   }
 
   function updateClock() {
@@ -3749,6 +3829,7 @@
     const emptyEl = document.getElementById('bilan-empty');
     const listEl  = document.getElementById('bilan-list');
     const countEl = document.getElementById('bilan-count');
+    if (!emptyEl || !listEl || !countEl) return;
 
     countEl.textContent = `${bilans.length} bilan${bilans.length > 1 ? 's' : ''}`;
 
@@ -3937,11 +4018,12 @@
     const totalEl = document.getElementById('patients-total');
     const coursEl = document.getElementById('patients-en-cours');
     const libEl   = document.getElementById('patients-liberes');
+    if (!list || !empty || !totalEl) return;
 
     // Stats
     totalEl.textContent = patients.length;
-    coursEl.textContent = patients.filter(p => p.statut === 'En cours').length;
-    libEl.textContent   = patients.filter(p => p.statut === 'Libéré' || p.statut === 'Transféré').length;
+    if (coursEl) coursEl.textContent = patients.filter(p => p.statut === 'En cours').length;
+    if (libEl) libEl.textContent = patients.filter(p => p.statut === 'Libéré' || p.statut === 'Transféré').length;
 
     const q = filter !== undefined ? filter : (document.getElementById('patients-search')?.value.toLowerCase() || '');
     const filtered = q
