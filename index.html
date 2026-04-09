@@ -2551,9 +2551,7 @@
     } else if (page === 'bilan') {
       document.getElementById('main-bilan').style.display = 'block';
       document.getElementById('nav-bilan').classList.add('active');
-      const now = new Date();
-      document.getElementById('bilan-date').value  = now.toISOString().split('T')[0];
-      document.getElementById('bilan-heure').value = now.toTimeString().slice(0,5);
+      resetBilanForm();
     } else if (page === 'patients') {
       document.getElementById('main-patients').style.display = 'block';
       document.getElementById('nav-patients').classList.add('active');
@@ -3821,15 +3819,36 @@
     okEl.style.display = 'block';
     setTimeout(() => okEl.style.display = 'none', 4000);
 
-    // Reset formulaire
-    document.getElementById('bilan-type').value        = '';
-    document.getElementById('bilan-lieu').value        = '';
-    document.getElementById('bilan-vehicule').value    = '';
-    document.getElementById('bilan-unite').value       = '';
-    document.getElementById('bilan-victimes').value    = '';
-    document.getElementById('bilan-agents').value      = '';
-    document.getElementById('bilan-description').value = '';
+    const now2 = new Date();
+    resetBilanForm();
+    document.getElementById('bilan-date').value  = now2.toISOString().split('T')[0];
+    document.getElementById('bilan-heure').value = now2.toTimeString().slice(0,5);
+  }
+
+  function resetBilanForm() {
+    const now = new Date();
+    // Champs texte / nombre / select simples
+    ['bilan-type','bilan-lieu','bilan-vehicule','bilan-unite',
+     'bilan-victimes','bilan-agents','bilan-description',
+     'bilan-age','bilan-poids','bilan-taille'
+    ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    // Statut → valeur par défaut
+    const statutEl = document.getElementById('bilan-statut');
+    if (statutEl) statutEl.value = 'Terminé';
+    // Mallette checkbox + info (traité séparément car pas dans clearMedicalFields)
+    const cbMal = document.getElementById('cb-mallette');
+    if (cbMal && cbMal.checked) { cbMal.checked = false; toggleExtra('extra-mallette', cbMal, '#f59e0b'); }
+    const infoMal = document.getElementById('info-mallette');
+    if (infoMal) infoMal.value = '';
+    // Champs médicaux + toutes les cases (vision, conscience, temps, espace, arret, medic, traitement, allergie, addiction, antecedents)
+    clearMedicalFields();
+    // Vider les textareas des cases (cachées mais conservent leur texte)
+    ['info-vision','info-conscience','info-temps','info-espace',
+     'info-arret','info-medic','info-traitement','info-allergie','info-addiction','info-antecedents'
+    ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     clearPatientBilan();
+    document.getElementById('bilan-date').value  = now.toISOString().split('T')[0];
+    document.getElementById('bilan-heure').value = now.toTimeString().slice(0,5);
   }
 
   function renderBilans() {
