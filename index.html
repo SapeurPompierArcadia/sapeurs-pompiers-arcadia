@@ -1148,6 +1148,11 @@
 
       <!-- Formulaire nouveau bilan -->
       <div class="punch-section-card" style="margin-bottom:20px;">
+        <div id="bilan-edit-mode" style="display:none;margin-bottom:14px;background:rgba(245,158,11,.12);
+          border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:10px 14px;
+          font-size:12px;font-weight:500;color:#fbbf24;align-items:center;gap:8px;">
+          ✏️ <strong>Mode édition</strong> — Modifiez les champs puis cliquez sur "Mettre à jour"
+        </div>
         <div class="punch-section-title" style="margin-bottom:20px;"><span>➕</span> Nouveau bilan</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -1710,13 +1715,20 @@
               <option value="Annulé">❌ Annulé</option>
             </select>
           </div>
-          <button onclick="submitBilan()" style="background:#6366f1;color:#fff;border:none;
-            border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;
-            cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px;
-            transition:background .2s;" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            Soumettre le bilan
-          </button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button id="bilan-cancel-edit" onclick="cancelEditBilan()" style="display:none;
+              padding:10px 18px;background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.3);
+              border-radius:8px;color:#94a3b8;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+              Annuler
+            </button>
+            <button id="bilan-submit-btn" onclick="submitBilan()" style="background:#6366f1;color:#fff;border:none;
+              border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;
+              cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px;
+              transition:background .2s;" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Soumettre le bilan
+            </button>
+          </div>
         </div>
 
         <!-- Message erreur -->
@@ -2667,6 +2679,7 @@
 
   // ── BILAN : RECHERCHE PATIENT ──
   let selectedPatientBilan = null;
+  let editingBilanId = null;
 
   function showPatientDropdown() {
     renderPatientDropdown('');
@@ -3792,13 +3805,20 @@
     };
 
     // Sauvegarder dans Supabase
-    supa.from('bilans').insert(bilanData).select().then(({ data, error }) => {
-      if (error) { console.error('Bilan save error:', error); return; }
-      loadBilans();
-    });
+    if (editingBilanId) {
+      supa.from('bilans').update(bilanData).eq('id', editingBilanId).then(({ error }) => {
+        if (error) { console.error('Bilan update error:', error); return; }
+        loadBilans();
+      });
+    } else {
+      supa.from('bilans').insert(bilanData).select().then(({ data, error }) => {
+        if (error) { console.error('Bilan save error:', error); return; }
+        loadBilans();
+      });
+    }
 
-    // Création automatique patient si non lié
-    if (nomprenom && !selectedPatientBilan) {
+    // Création automatique patient si non lié (seulement à la création)
+    if (nomprenom && !selectedPatientBilan && !editingBilanId) {
       const parts  = nomprenom.trim().split(' ');
       const prenom = parts[0] || '';
       const nom    = parts.slice(1).join(' ') || '';
@@ -3813,9 +3833,11 @@
       }).then(() => loadPatients());
     }
 
-    okEl.textContent = nomprenom && !selectedPatientBilan
-      ? `✅ Bilan enregistré. Fiche patient créée pour "${nomprenom}".`
-      : '✅ Bilan enregistré avec succès.';
+    okEl.textContent = editingBilanId
+      ? '✅ Bilan mis à jour avec succès.'
+      : (nomprenom && !selectedPatientBilan
+        ? `✅ Bilan enregistré. Fiche patient créée pour "${nomprenom}".`
+        : '✅ Bilan enregistré avec succès.');
     okEl.style.display = 'block';
     setTimeout(() => okEl.style.display = 'none', 4000);
 
@@ -3825,8 +3847,101 @@
     document.getElementById('bilan-heure').value = now2.toTimeString().slice(0,5);
   }
 
+  function cancelEditBilan() {
+    editingBilanId = null;
+    resetBilanForm();
+  }
+
+  async function deleteBilan(bilanId) {
+    if (!confirm('Supprimer ce bilan définitivement ?')) return;
+    const { error } = await supa.from('bilans').delete().eq('id', bilanId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    closeBilanDetail();
+    await loadBilans();
+  }
+
+  function editBilan(bilanId) {
+    const b = bilans.find(x => x._id === bilanId);
+    if (!b) return;
+    closeBilanDetail();
+    // Navigate (resets form first), then set edit state
+    if (currentPage !== 'bilan') navigate('bilan');
+    else resetBilanForm();
+    editingBilanId = bilanId;
+    // Remplir tous les champs
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('bilan-date',        b.date);
+    set('bilan-heure',       b.heure);
+    set('bilan-type',        b.type);
+    set('bilan-lieu',        b.lieu);
+    set('bilan-vehicule',    b.vehicule);
+    set('bilan-unite',       b.unite);
+    set('bilan-victimes',    b.victimes);
+    set('bilan-agents',      b.agents);
+    set('bilan-description', b.description);
+    set('bilan-statut',      b.statut || 'Terminé');
+    set('bilan-nomprenom',   b.nomprenom);
+    set('bilan-age',         b.bilanAge);
+    set('bilan-poids',       b.bilanPoids);
+    set('bilan-taille',      b.bilanTaille);
+    set('bilan-localisation',b.localisation);
+    set('bilan-blessure',    b.blessure);
+    set('bilan-douleur',     b.douleur);
+    set('bilan-pouls',       b.pouls);
+    set('bilan-tension',     b.tension);
+    set('bilan-spo2',        b.spo2);
+    // Mettre à jour l'indicateur douleur
+    const dEl = document.getElementById('bilan-douleur');
+    if (dEl && b.douleur) updateDouleurColor(dEl);
+    // Cases à cocher
+    const setCb = (cbId, checked, infoId, infoVal, color) => {
+      const cb = document.getElementById(cbId);
+      if (!cb) return;
+      cb.checked = !!checked;
+      toggleExtra('extra-' + cbId.replace('cb-',''), cb, color);
+      if (infoId) { const el = document.getElementById(infoId); if (el) el.value = infoVal || ''; }
+    };
+    setCb('cb-mallette',    b.mallette,      'info-mallette',    b.infoMallette,    '#f59e0b');
+    setCb('cb-vision',      b.cbVision,      'info-vision',      b.infoVision);
+    setCb('cb-conscience',  b.cbConscience,  'info-conscience',  b.infoConscience);
+    setCb('cb-temps',       b.cbTemps,       'info-temps',       b.infoTemps);
+    setCb('cb-espace',      b.cbEspace,      'info-espace',      b.infoEspace);
+    setCb('cb-arret',       b.cbArret,       'info-arret',       b.infoArret,       '#ef4444');
+    setCb('cb-medic',       b.cbMedic,       'info-medic',       b.infoMedic);
+    setCb('cb-traitement',  b.cbTraitement,  'info-traitement',  b.infoTraitement);
+    setCb('cb-allergie',    b.cbAllergie,    'info-allergie',    b.infoAllergie,    '#f59e0b');
+    setCb('cb-addiction',   b.cbAddiction,   'info-addiction',   b.infoAddiction);
+    setCb('cb-antecedents', b.cbAntecedents, 'info-antecedents', b.infoAntecedents);
+    // Mettre à jour le bouton et afficher le bandeau
+    const submitBtn = document.getElementById('bilan-submit-btn');
+    if (submitBtn) {
+      submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Mettre à jour le bilan';
+      submitBtn.style.background = '#f59e0b';
+      submitBtn.onmouseover = () => submitBtn.style.background = '#d97706';
+      submitBtn.onmouseout  = () => submitBtn.style.background = '#f59e0b';
+    }
+    const cancelBtn = document.getElementById('bilan-cancel-edit');
+    if (cancelBtn) cancelBtn.style.display = 'flex';
+    const modeEl = document.getElementById('bilan-edit-mode');
+    if (modeEl) modeEl.style.display = 'flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   function resetBilanForm() {
     const now = new Date();
+    // Réinitialiser le mode édition
+    editingBilanId = null;
+    const submitBtn = document.getElementById('bilan-submit-btn');
+    if (submitBtn) {
+      submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Soumettre le bilan';
+      submitBtn.style.background = '#6366f1';
+      submitBtn.onmouseover = () => submitBtn.style.background = '#4f46e5';
+      submitBtn.onmouseout  = () => submitBtn.style.background = '#6366f1';
+    }
+    const cancelBtn = document.getElementById('bilan-cancel-edit');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    const modeEl = document.getElementById('bilan-edit-mode');
+    if (modeEl) modeEl.style.display = 'none';
     // Champs texte / nombre / select simples
     ['bilan-type','bilan-lieu','bilan-vehicule','bilan-unite',
      'bilan-victimes','bilan-agents','bilan-description',
@@ -3872,8 +3987,8 @@
       const dateF = new Date(b.date).toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'long' });
 
       return `
-        <div style="border:1px solid #1e293b;border-radius:10px;padding:16px 18px;
-          margin-bottom:10px;background:rgba(255,255,255,.02);transition:background .15s;"
+        <div onclick="openBilanDetail(${i})" style="border:1px solid #1e293b;border-radius:10px;padding:16px 18px;
+          margin-bottom:10px;background:rgba(255,255,255,.02);transition:background .15s;cursor:pointer;"
           onmouseover="this.style.background='rgba(255,255,255,.04)'"
           onmouseout="this.style.background='rgba(255,255,255,.02)'">
 
@@ -3890,7 +4005,19 @@
                 ${b.statut}
               </div>
             </div>
-            <div style="font-size:12px;color:#64748b;white-space:nowrap;">${dateF} à ${b.heure}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="font-size:12px;color:#64748b;white-space:nowrap;">${dateF} à ${b.heure}</div>
+              <button onclick="event.stopPropagation();editBilan('${b._id}')"
+                style="padding:4px 10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);
+                border-radius:6px;color:#818cf8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
+                ✏️ Modifier
+              </button>
+              <button onclick="event.stopPropagation();deleteBilan('${b._id}')"
+                style="width:26px;height:26px;padding:0;background:rgba(239,68,68,.12);
+                border:1px solid rgba(239,68,68,.3);border-radius:6px;color:#ef4444;
+                font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+                display:inline-flex;align-items:center;justify-content:center;">✕</button>
+            </div>
           </div>
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:${b.description ? '10px' : '0'};">
@@ -4312,9 +4439,21 @@
           </div>
           <div style="font-size:12px;color:#64748b;">📅 ${b.date} à ${b.heure} · Rédigé par ${b.agent}</div>
         </div>
-        <button onclick="closeBilanDetail()" style="background:#1e293b;border:none;
-          color:#94a3b8;border-radius:8px;width:32px;height:32px;cursor:pointer;
-          font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="editBilan('${b._id}')"
+            style="padding:6px 14px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);
+            border-radius:8px;color:#818cf8;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">
+            ✏️ Modifier
+          </button>
+          <button onclick="deleteBilan('${b._id}')"
+            style="padding:6px 14px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);
+            border-radius:8px;color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">
+            🗑️ Supprimer
+          </button>
+          <button onclick="closeBilanDetail()" style="background:#1e293b;border:none;
+            color:#94a3b8;border-radius:8px;width:32px;height:32px;cursor:pointer;
+            font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+        </div>
       </div>
 
       <!-- Intervention -->
