@@ -3721,10 +3721,13 @@
     const listEl  = document.getElementById('sp-list');
     if (!countEl) return;
 
-    // Chercher tous les shifts sans end_time (en cours)
+    // Chercher les shifts actifs depuis la dernière coupure prévue (2h/8h/14h/20h)
+    // Les shifts plus anciens auraient dû être auto-punch-out — on les ignore à l'affichage
+    const cutoff = getLastScheduledCutoff();
     const { data: activeShifts } = await supa.from('shifts')
       .select('user_id, user_name, start_time')
-      .is('end_time', null);
+      .is('end_time', null)
+      .gte('start_time', cutoff.toISOString());
 
     if (!activeShifts || activeShifts.length === 0) {
       countEl.textContent = '0';
