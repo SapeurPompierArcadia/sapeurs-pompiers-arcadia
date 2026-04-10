@@ -4309,7 +4309,8 @@
   }
 
   // Fermer modal en cliquant en dehors
-  document.getElementById('modal-patient').addEventListener('click', function(e) {
+  const _mpModal = document.getElementById('modal-patient');
+  if (_mpModal) _mpModal.addEventListener('click', function(e) {
     if (e.target === this) closeAddPatient();
   });
 
@@ -4445,7 +4446,8 @@
     document.getElementById('modal-detail').style.display = 'none';
   }
 
-  document.getElementById('modal-detail').addEventListener('click', function(e) {
+  const _mdModal = document.getElementById('modal-detail');
+  if (_mdModal) _mdModal.addEventListener('click', function(e) {
     if (e.target === this) closePatientDetail();
   });
 
@@ -4576,7 +4578,8 @@
     document.getElementById('modal-bilan-detail').style.display = 'none';
   }
 
-  document.getElementById('modal-bilan-detail').addEventListener('click', function(e) {
+  const _mbdModal = document.getElementById('modal-bilan-detail');
+  if (_mbdModal) _mbdModal.addEventListener('click', function(e) {
     if (e.target === this) closeBilanDetail();
   });
 
