@@ -4657,7 +4657,10 @@
     }
     updateDispatchDateLabel();
 
-    // Charger liste agents (une seule fois)
+    // Afficher la grille immédiatement (avant tout appel réseau)
+    renderDispatchGrid();
+
+    // Charger liste agents (une seule fois) puis re-rendre pour peupler les selects
     if (dispatchAgents.length === 0) {
       try {
         const { data } = await supa.from('users').select('prenom, nom, grade').order('nom');
@@ -4666,11 +4669,11 @@
             const name = ((u.prenom || '') + ' ' + (u.nom || '')).trim();
             return name || u.email || '';
           }).filter(Boolean).sort();
+          renderDispatchGrid(); // re-rendre avec les agents chargés
         }
       } catch(e) { console.warn('initDispatch agents error:', e); }
     }
 
-    renderDispatchGrid(); // toujours afficher la grille
     try { await loadDispatch(); } catch(e) { console.warn('loadDispatch error:', e); setDispatchStatus(''); }
     dispatchInitialized = true;
   }
