@@ -3073,11 +3073,12 @@
   }
 
   async function deleteMember(userId) {
-    if (!confirm('Supprimer ce membre définitivement ? Toutes ses données (services, patients) seront supprimées.')) return;
+    if (!confirm('Supprimer ce membre définitivement ?\nSes services seront supprimés.\nSes patients et bilans seront conservés (auteur anonymisé).')) return;
     // Supprimer les shifts
     await supa.from('shifts').delete().eq('user_id', userId);
-    // Supprimer les patients (les bilans seront supprimés en cascade via FK)
-    await supa.from('patients').delete().eq('user_id', userId);
+    // Anonymiser les références dans patients et bilans (ne pas supprimer les dossiers)
+    await supa.from('patients').update({ agent_id: null }).eq('agent_id', userId);
+    await supa.from('bilans').update({ agent_id: null }).eq('agent_id', userId);
     // Supprimer le membre
     const { error } = await supa.from('users').delete().eq('id', userId);
     if (error) { alert('Erreur : ' + error.message); return; }
@@ -4668,8 +4669,8 @@
       category: 'SPE',
       vehicles: [
         { id: 'MIR01',        label: 'MIR 01',        roles: ['CA','COND','EQ 1'] },
-        { id: 'CYNOPHILE01',  label: 'CYNOPHILE 01',  roles: ['COND','PLONGEUR 1','PLONGEUR 2','PLONGEUR 3'] },
-        { id: 'DRAGON01',     label: 'DRAGON 01',     roles: ['PILOTE','CO-PILOTE','MÉDECIN','PLONGEUR'] },
+        { id: 'CYNOPHILE01',  label: 'CYNOPHILE 01',  roles: ['CA','COND','EQ 1','EQ 2'] },
+        { id: 'DRAGON01',     label: 'DRAGON 01',     roles: ['CA','COND','EQ 1','EQ 2'] },
         { id: 'NAUTIQUE01',   label: 'NAUTIQUE 01',   roles: ['CA','COND','EQ 1'] },
       ]
     },
@@ -4766,10 +4767,18 @@
         // Carte véhicule
         html += '<div style="border-radius:8px;overflow:hidden;border:1px solid ' + c.border + ';box-shadow:0 2px 8px rgba(0,0,0,.3);">';
 
-        // Titre véhicule
-        html += '<div style="background:' + c.veh + ';border-bottom:1px solid ' + c.border + ';padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:6px;">';
+        // Titre véhicule + status dropdown
+        var statusKey = v.id + '-_STATUS';
+        var statusColors = { 'Dispo': '#22c55e', 'Occupé': '#f59e0b', 'En transport': '#3b82f6', 'En intervention': '#ef4444' };
+        var statusOptsHtml = '<option value="">— Statut —</option>';
+        var statusList = ['Dispo','Occupé','En transport','En intervention'];
+        for (var si = 0; si < statusList.length; si++) {
+          statusOptsHtml += '<option value="' + statusList[si] + '">' + statusList[si] + '</option>';
+        }
+        html += '<div style="background:' + c.veh + ';border-bottom:1px solid ' + c.border + ';padding:6px 8px;display:flex;align-items:center;gap:6px;">';
         html += '<div style="width:6px;height:6px;border-radius:50%;background:' + c.accent + ';box-shadow:0 0 6px ' + c.accent + ';flex-shrink:0;"></div>';
-        html += '<span style="font-size:11px;font-weight:800;color:' + c.accent + ';letter-spacing:.5px;text-transform:uppercase;">' + v.label + '</span>';
+        html += '<span style="font-size:11px;font-weight:800;color:' + c.accent + ';letter-spacing:.5px;text-transform:uppercase;flex:1;">' + v.label + '</span>';
+        html += '<select data-key="' + statusKey + '" onchange="onDispatchStatusChange(this)" style="background:#0d1117;color:#e2e8f0;border:1px solid ' + c.border + ';border-radius:4px;padding:2px 4px;font-size:10px;font-family:inherit;cursor:pointer;max-width:100px;">' + statusOptsHtml + '</select>';
         html += '</div>';
 
         // Lignes de rôles
@@ -4804,9 +4813,10 @@
     const { data } = await supa.from('dispatch').select('data').eq('garde_date', date).single();
     dispatchData = (data && data.data) ? data.data : {};
 
-    // Peupler les selects
+    // Peupler les selects (agents + status)
     document.querySelectorAll('#dispatch-grid select[data-key]').forEach(sel => {
       sel.value = dispatchData[sel.dataset.key] || '';
+      if (sel.dataset.key.endsWith('-_STATUS')) applyStatusColor(sel);
     });
     setDispatchStatus('');
   }
@@ -4816,6 +4826,21 @@
     clearTimeout(dispatchSaveTimer);
     setDispatchStatus('Modification…');
     dispatchSaveTimer = setTimeout(saveDispatch, 800);
+  }
+
+  function onDispatchStatusChange(sel) {
+    dispatchData[sel.dataset.key] = sel.value;
+    applyStatusColor(sel);
+    clearTimeout(dispatchSaveTimer);
+    setDispatchStatus('Modification…');
+    dispatchSaveTimer = setTimeout(saveDispatch, 800);
+  }
+
+  function applyStatusColor(sel) {
+    var statusColors = { 'Dispo': '#22c55e', 'Occupé': '#f59e0b', 'En transport': '#3b82f6', 'En intervention': '#ef4444' };
+    var col = statusColors[sel.value] || '#64748b';
+    sel.style.color = sel.value ? col : '#64748b';
+    sel.style.borderColor = sel.value ? col : '#2d3748';
   }
 
   async function saveDispatch() {
