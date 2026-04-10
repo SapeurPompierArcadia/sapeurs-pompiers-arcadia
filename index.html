@@ -3934,14 +3934,14 @@
 
   async function deleteBilan(bilanId) {
     if (!confirm('Supprimer ce bilan définitivement ?')) return;
-    const { error } = await supa.from('bilans').delete().eq('id', bilanId);
+    const { error } = await supa.from('bilans').delete().eq('id', String(bilanId));
     if (error) { alert('Erreur : ' + error.message); return; }
     closeBilanDetail();
     await loadBilans();
   }
 
   function editBilan(bilanId) {
-    const b = bilans.find(x => x._id === bilanId);
+    const b = bilans.find(x => String(x._id) === String(bilanId));
     if (!b) return;
     closeBilanDetail();
     // Navigate (resets form first), then set edit state
