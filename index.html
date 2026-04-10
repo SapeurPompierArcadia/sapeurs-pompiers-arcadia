@@ -4689,36 +4689,33 @@
     const grid = document.getElementById('dispatch-grid');
     if (!grid) return;
 
-    grid.innerHTML = DISPATCH_CONFIG.map(col => `
-      <div style="min-width:185px;flex:1;border-right:1px solid #2d3748;">
-        <!-- En-tête colonne -->
-        <div style="background:#c0392b;color:#fff;text-align:center;padding:8px 4px;font-size:12px;font-weight:800;letter-spacing:.5px;position:sticky;top:0;">
-          ${col.category}
-        </div>
-        <!-- Véhicules -->
-        <div style="padding:8px 6px;display:flex;flex-direction:column;gap:10px;">
-          ${col.vehicles.map(v => `
-            <div style="background:#1a2235;border-radius:6px;overflow:hidden;border:1px solid #2d3748;">
-              <div style="background:#7f1d1d;color:#fff;padding:5px 8px;font-size:11px;font-weight:700;text-align:center;letter-spacing:.3px;">
-                ${v.label}
-              </div>
-              ${v.roles.map(role => {
-                const key = v.id + '-' + role.replace(/\s/g,'_');
-                return `
-                <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #0f1117;">
-                  <span style="font-size:10px;color:#94a3b8;min-width:52px;font-weight:500;">${role} :</span>
-                  <select data-key="${key}" onchange="onDispatchChange(this)"
-                    style="flex:1;background:#0f1117;color:#e2e8f0;border:1px solid #2d3748;border-radius:4px;padding:2px 4px;font-size:11px;font-family:inherit;cursor:pointer;">
-                    <option value=""></option>
-                    ${dispatchAgents.map(a => `<option value="${a}">${a}</option>`).join('')}
-                  </select>
-                </div>`;
-              }).join('')}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
+    var html = '';
+    for (var ci = 0; ci < DISPATCH_CONFIG.length; ci++) {
+      var col = DISPATCH_CONFIG[ci];
+      html += '<div style="min-width:185px;flex:1;border-right:1px solid #2d3748;">';
+      html += '<div style="background:#c0392b;color:#fff;text-align:center;padding:8px 4px;font-size:12px;font-weight:800;letter-spacing:.5px;">' + col.category + '</div>';
+      html += '<div style="padding:8px 6px;display:flex;flex-direction:column;gap:10px;">';
+      for (var vi = 0; vi < col.vehicles.length; vi++) {
+        var v = col.vehicles[vi];
+        html += '<div style="background:#1a2235;border-radius:6px;overflow:hidden;border:1px solid #2d3748;">';
+        html += '<div style="background:#7f1d1d;color:#fff;padding:5px 8px;font-size:11px;font-weight:700;text-align:center;letter-spacing:.3px;">' + v.label + '</div>';
+        for (var ri = 0; ri < v.roles.length; ri++) {
+          var role = v.roles[ri];
+          var key = v.id + '-' + role.replace(/\s/g, '_');
+          var opts = '<option value=""></option>';
+          for (var ai = 0; ai < dispatchAgents.length; ai++) {
+            opts += '<option value="' + dispatchAgents[ai].replace(/"/g, '&quot;') + '">' + dispatchAgents[ai] + '</option>';
+          }
+          html += '<div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #0f1117;">';
+          html += '<span style="font-size:10px;color:#94a3b8;min-width:52px;font-weight:500;">' + role + ' :</span>';
+          html += '<select data-key="' + key + '" onchange="onDispatchChange(this)" style="flex:1;background:#0f1117;color:#e2e8f0;border:1px solid #2d3748;border-radius:4px;padding:2px 4px;font-size:11px;font-family:inherit;cursor:pointer;">' + opts + '</select>';
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+      html += '</div></div>';
+    }
+    grid.innerHTML = html;
   }
 
   async function loadDispatch() {
