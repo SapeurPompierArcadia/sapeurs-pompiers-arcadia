@@ -2166,29 +2166,63 @@
 
     <!-- ══ TABLETTE AFFECTATIONS PAGE ══ -->
     <main class="main" id="main-dispatch" style="display:none;padding:0;">
-      <!-- Header tablette -->
-      <div style="background:#c0392b;padding:14px 24px 10px;position:sticky;top:0;z-index:10;">
-        <div style="text-align:center;color:#fff;">
-          <div style="font-size:22px;font-weight:800;letter-spacing:1px;">Tablette SAPEURS-POMPIERS</div>
-          <div style="font-size:12px;font-weight:500;opacity:.85;margin-top:2px;">LES AFFECTATIONS SAPEURS-POMPIERS</div>
-          <div style="font-size:12px;font-weight:600;margin-top:2px;" id="dispatch-date-label"></div>
+
+      <!-- Header tablette redesigné -->
+      <div style="background:linear-gradient(135deg,#1a0505 0%,#2d0a0a 40%,#1a0505 100%);
+        border-bottom:2px solid #c0392b;padding:0;position:sticky;top:0;z-index:10;
+        box-shadow:0 4px 24px rgba(192,57,43,.35);">
+
+        <!-- Barre supérieure rouge -->
+        <div style="background:linear-gradient(90deg,#b71c1c,#c0392b,#b71c1c);
+          padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+
+          <!-- Logo + Titre -->
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:38px;height:38px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+              border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🔥</div>
+            <div>
+              <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:1.5px;text-transform:uppercase;">
+                Tablette des Affectations
+              </div>
+              <div style="font-size:10px;color:rgba(255,255,255,.65);font-weight:500;letter-spacing:.08em;margin-top:1px;">
+                SAPEURS-POMPIERS D'ARCADIA
+              </div>
+            </div>
+          </div>
+
+          <!-- Date label centré -->
+          <div style="text-align:center;flex:1;">
+            <div id="dispatch-date-label" style="font-size:13px;font-weight:700;color:#fff;letter-spacing:.5px;
+              background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15);border-radius:20px;
+              padding:4px 16px;display:inline-block;"></div>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div id="dispatch-save-status" style="font-size:11px;color:rgba(255,255,255,.75);min-width:90px;text-align:right;"></div>
+            <button onclick="printDispatch()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+              color:#fff;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;
+              font-family:inherit;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">🖨️ Imprimer</button>
+            <button onclick="clearDispatch()" style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.2);
+              color:rgba(255,255,255,.75);border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;
+              font-family:inherit;transition:background .15s;" onmouseover="this.style.background='rgba(0,0,0,.4)'" onmouseout="this.style.background='rgba(0,0,0,.25)'">🗑️ Effacer</button>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <label style="color:#fff;font-size:12px;font-weight:500;">Garde du :</label>
-            <input type="date" id="dispatch-date-input" onchange="loadDispatch()" style="background:#fff;color:#1e293b;border:none;border-radius:6px;padding:4px 10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div id="dispatch-save-status" style="font-size:11px;color:rgba(255,255,255,.7);"></div>
-            <button onclick="printDispatch()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🖨️ Imprimer</button>
-            <button onclick="clearDispatch()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Effacer</button>
-          </div>
+
+        <!-- Barre inférieure sombre avec sélecteur date -->
+        <div style="padding:8px 24px;display:flex;align-items:center;gap:12px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#94a3b8"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+          <span style="font-size:11px;font-weight:600;color:#64748b;letter-spacing:.05em;text-transform:uppercase;">Garde du</span>
+          <input type="date" id="dispatch-date-input" onchange="loadDispatch()"
+            style="background:#0f1117;color:#e2e8f0;border:1px solid #2d3748;border-radius:7px;
+            padding:5px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;outline:none;
+            transition:border-color .2s;" onfocus="this.style.borderColor='#c0392b'" onblur="this.style.borderColor='#2d3748'">
         </div>
       </div>
 
       <!-- Grille des véhicules -->
-      <div id="dispatch-grid" style="display:flex;gap:0;overflow-x:auto;min-height:calc(100vh - 120px);background:#111827;">
-        <div style="color:#fff;padding:20px;font-size:14px;">Chargement de la grille...</div>
+      <div id="dispatch-grid" style="display:flex;gap:0;overflow-x:auto;min-height:calc(100vh - 110px);background:#0d1117;">
+        <div style="color:#64748b;padding:40px;font-size:14px;margin:auto;">Chargement de la grille…</div>
       </div>
     </main>
 
@@ -4693,6 +4727,17 @@
     if (el) el.textContent = 'GARDE DU ' + label;
   }
 
+  // Couleurs par catégorie de service
+  const DISPATCH_CAT_COLORS = {
+    'INCENDIE':      { accent: '#ef4444', bg: 'rgba(239,68,68,.08)',   border: 'rgba(239,68,68,.25)',   veh: 'rgba(239,68,68,.18)',   icon: '🔥' },
+    'FEUX FORET':    { accent: '#f59e0b', bg: 'rgba(245,158,11,.08)',  border: 'rgba(245,158,11,.25)',  veh: 'rgba(245,158,11,.18)',  icon: '🌲' },
+    'SUAP':          { accent: '#3b82f6', bg: 'rgba(59,130,246,.08)',  border: 'rgba(59,130,246,.25)',  veh: 'rgba(59,130,246,.18)',  icon: '🚑' },
+    'SSSM':          { accent: '#14b8a6', bg: 'rgba(20,184,166,.08)',  border: 'rgba(20,184,166,.25)',  veh: 'rgba(20,184,166,.18)',  icon: '🩺' },
+    'SR':            { accent: '#8b5cf6', bg: 'rgba(139,92,246,.08)',  border: 'rgba(139,92,246,.25)',  veh: 'rgba(139,92,246,.18)',  icon: '🚗' },
+    'SPE':           { accent: '#6366f1', bg: 'rgba(99,102,241,.08)',  border: 'rgba(99,102,241,.25)',  veh: 'rgba(99,102,241,.18)',  icon: '🎖️' },
+    'OPÉRATIONNEL':  { accent: '#64748b', bg: 'rgba(100,116,139,.08)', border: 'rgba(100,116,139,.25)', veh: 'rgba(100,116,139,.18)', icon: '📡' },
+  };
+
   function renderDispatchGrid() {
     const grid = document.getElementById('dispatch-grid');
     if (!grid) return;
@@ -4700,28 +4745,52 @@
     var html = '';
     for (var ci = 0; ci < DISPATCH_CONFIG.length; ci++) {
       var col = DISPATCH_CONFIG[ci];
-      html += '<div style="min-width:185px;flex:1;border-right:1px solid #2d3748;">';
-      html += '<div style="background:#c0392b;color:#fff;text-align:center;padding:8px 4px;font-size:12px;font-weight:800;letter-spacing:.5px;">' + col.category + '</div>';
-      html += '<div style="padding:8px 6px;display:flex;flex-direction:column;gap:10px;">';
+      var c = DISPATCH_CAT_COLORS[col.category] || DISPATCH_CAT_COLORS['OPÉRATIONNEL'];
+      var isLast = ci === DISPATCH_CONFIG.length - 1;
+
+      // Colonne principale
+      html += '<div style="min-width:195px;flex:1;border-right:' + (isLast ? 'none' : '1px solid #1e293b') + ';display:flex;flex-direction:column;">';
+
+      // En-tête catégorie
+      html += '<div style="background:' + c.bg + ';border-bottom:2px solid ' + c.accent + ';padding:10px 8px 8px;text-align:center;position:sticky;top:0;">';
+      html += '<div style="font-size:16px;margin-bottom:3px;">' + c.icon + '</div>';
+      html += '<div style="font-size:11px;font-weight:800;color:' + c.accent + ';letter-spacing:1px;text-transform:uppercase;">' + col.category + '</div>';
+      html += '</div>';
+
+      // Corps de la colonne
+      html += '<div style="padding:10px 8px;display:flex;flex-direction:column;gap:8px;flex:1;background:#0d1117;">';
+
       for (var vi = 0; vi < col.vehicles.length; vi++) {
         var v = col.vehicles[vi];
-        html += '<div style="background:#1a2235;border-radius:6px;overflow:hidden;border:1px solid #2d3748;">';
-        html += '<div style="background:#7f1d1d;color:#fff;padding:5px 8px;font-size:11px;font-weight:700;text-align:center;letter-spacing:.3px;">' + v.label + '</div>';
+
+        // Carte véhicule
+        html += '<div style="border-radius:8px;overflow:hidden;border:1px solid ' + c.border + ';box-shadow:0 2px 8px rgba(0,0,0,.3);">';
+
+        // Titre véhicule
+        html += '<div style="background:' + c.veh + ';border-bottom:1px solid ' + c.border + ';padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:6px;">';
+        html += '<div style="width:6px;height:6px;border-radius:50%;background:' + c.accent + ';box-shadow:0 0 6px ' + c.accent + ';flex-shrink:0;"></div>';
+        html += '<span style="font-size:11px;font-weight:800;color:' + c.accent + ';letter-spacing:.5px;text-transform:uppercase;">' + v.label + '</span>';
+        html += '</div>';
+
+        // Lignes de rôles
         for (var ri = 0; ri < v.roles.length; ri++) {
           var role = v.roles[ri];
           var key = v.id + '-' + role.replace(/\s/g, '_');
-          var opts = '<option value=""></option>';
+          var opts = '<option value="">— Libre —</option>';
           for (var ai = 0; ai < dispatchAgents.length; ai++) {
             opts += '<option value="' + dispatchAgents[ai].replace(/"/g, '&quot;') + '">' + dispatchAgents[ai] + '</option>';
           }
-          html += '<div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #0f1117;">';
-          html += '<span style="font-size:10px;color:#94a3b8;min-width:52px;font-weight:500;">' + role + ' :</span>';
-          html += '<select data-key="' + key + '" onchange="onDispatchChange(this)" style="flex:1;background:#0f1117;color:#e2e8f0;border:1px solid #2d3748;border-radius:4px;padding:2px 4px;font-size:11px;font-family:inherit;cursor:pointer;">' + opts + '</select>';
+          var isLastRole = ri === v.roles.length - 1;
+          html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:#0f1117;' + (isLastRole ? '' : 'border-bottom:1px solid #1a2235;') + '">';
+          html += '<span style="font-size:10px;color:#64748b;min-width:54px;font-weight:600;letter-spacing:.02em;flex-shrink:0;">' + role + '</span>';
+          html += '<select data-key="' + key + '" onchange="onDispatchChange(this)" style="flex:1;background:#161e2e;color:#e2e8f0;border:1px solid #2d3748;border-radius:5px;padding:3px 5px;font-size:11px;font-family:inherit;cursor:pointer;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor=\'' + c.accent + '\'" onblur="this.style.borderColor=\'#2d3748\'">' + opts + '</select>';
           html += '</div>';
         }
-        html += '</div>';
+
+        html += '</div>'; // fin carte véhicule
       }
-      html += '</div></div>';
+
+      html += '</div></div>'; // fin corps + colonne
     }
     grid.innerHTML = html;
   }
