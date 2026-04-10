@@ -717,6 +717,11 @@
           Patients
         </div>
 
+        <div class="nav-item" id="nav-dispatch" onclick="navigate('dispatch')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3zm0 4h12v2H3V7zm0 4h18v2H3v-2zm0 4h12v2H3v-2zm0 4h18v2H3v-2z"/></svg>
+          Tablette
+        </div>
+
         <div class="nav-item" id="nav-admin" onclick="navigate('admin')" style="display:none;">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l5 2.18V11c0 3.5-2.33 6.79-5 7.93-2.67-1.14-5-4.43-5-7.93V7.18L12 5zm-1 4v2H9v2h2v2h2v-2h2v-2h-2V9h-2z"/></svg>
           Administration
@@ -819,6 +824,14 @@
           <div class="menu-card-text">
             <div class="menu-title">Patients</div>
             <div class="menu-desc">Liste et suivi des patients pris en charge</div>
+          </div>
+        </div>
+
+        <div class="menu-card" onclick="navigate('dispatch')">
+          <div class="menu-icon ic-red">🚒</div>
+          <div class="menu-card-text">
+            <div class="menu-title">Tablette Affectations</div>
+            <div class="menu-desc">Affectations des véhicules et personnels</div>
           </div>
         </div>
 
@@ -2151,6 +2164,32 @@
 
     </main>
 
+    <!-- ══ TABLETTE AFFECTATIONS PAGE ══ -->
+    <main class="main" id="main-dispatch" style="display:none;padding:0;">
+      <!-- Header tablette -->
+      <div style="background:#c0392b;padding:14px 24px 10px;position:sticky;top:0;z-index:10;">
+        <div style="text-align:center;color:#fff;">
+          <div style="font-size:22px;font-weight:800;letter-spacing:1px;">Tablette SAPEURS-POMPIERS</div>
+          <div style="font-size:12px;font-weight:500;opacity:.85;margin-top:2px;">LES AFFECTATIONS SAPEURS-POMPIERS</div>
+          <div style="font-size:12px;font-weight:600;margin-top:2px;" id="dispatch-date-label"></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="color:#fff;font-size:12px;font-weight:500;">Garde du :</label>
+            <input type="date" id="dispatch-date-input" onchange="loadDispatch()" style="background:#fff;color:#1e293b;border:none;border-radius:6px;padding:4px 10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div id="dispatch-save-status" style="font-size:11px;color:rgba(255,255,255,.7);"></div>
+            <button onclick="printDispatch()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🖨️ Imprimer</button>
+            <button onclick="clearDispatch()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Effacer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grille des véhicules -->
+      <div id="dispatch-grid" style="display:flex;gap:0;overflow-x:auto;min-height:calc(100vh - 120px);"></div>
+    </main>
+
   </div>
 </div>
 
@@ -2546,6 +2585,7 @@
     document.getElementById('main-responsables') && (document.getElementById('main-responsables').style.display = 'none');
     document.getElementById('main-organigramme') && (document.getElementById('main-organigramme').style.display = 'none');
     document.getElementById('main-admin') && (document.getElementById('main-admin').style.display = 'none');
+    document.getElementById('main-dispatch') && (document.getElementById('main-dispatch').style.display = 'none');
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
     if (page === 'accueil') {
@@ -2582,6 +2622,10 @@
       document.getElementById('main-admin').style.display = 'block';
       document.getElementById('nav-admin').classList.add('active');
       loadAdminUsers();
+    } else if (page === 'dispatch') {
+      document.getElementById('main-dispatch').style.display = 'block';
+      document.getElementById('nav-dispatch').classList.add('active');
+      initDispatch();
     }
   }
 
@@ -3677,14 +3721,10 @@
     const listEl  = document.getElementById('sp-list');
     if (!countEl) return;
 
-    // Chercher tous les shifts sans end_time (en cours) depuis aujourd'hui
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
+    // Chercher tous les shifts sans end_time (en cours)
     const { data: activeShifts } = await supa.from('shifts')
       .select('user_id, user_name, start_time')
-      .is('end_time', null)
-      .gte('start_time', startOfDay.toISOString());
+      .is('end_time', null);
 
     if (!activeShifts || activeShifts.length === 0) {
       countEl.textContent = '0';
@@ -4534,6 +4574,196 @@
   document.getElementById('modal-bilan-detail').addEventListener('click', function(e) {
     if (e.target === this) closeBilanDetail();
   });
+
+  // ══ TABLETTE AFFECTATIONS ══
+
+  const DISPATCH_CONFIG = [
+    {
+      category: 'INCENDIE',
+      vehicles: [
+        { id: 'FPT01',    label: 'FPT 01',    roles: ['CA','COND','EQ 1','EQ 2'] },
+        { id: 'EPA01',    label: 'EPA 01',    roles: ['CA','COND'] },
+        { id: 'FMOGP01', label: 'FMOGP 01', roles: ['CA','COND'] },
+        { id: 'CODIS112',label: 'CODIS 112', roles: ['OP 1','OP 2'] },
+      ]
+    },
+    {
+      category: 'FEUX FORET',
+      vehicles: [
+        { id: 'CCRL01', label: 'CCRL 01', roles: ['CA','COND','EQ 1','EQ 2'] },
+        { id: 'CCGC01', label: 'CCGC 01', roles: ['CA','COND','EQ 1','EQ 2'] },
+        { id: 'CCFM01', label: 'CCFM 01', roles: ['CA','COND','EQ 1','EQ 2'] },
+        { id: 'CCFS01', label: 'CCFS 01', roles: ['CA','COND','EQ 1','EQ 2'] },
+      ]
+    },
+    {
+      category: 'SUAP',
+      vehicles: [
+        { id: 'VSAV01',   label: 'VSAV 01',    roles: ['CA','COND'] },
+        { id: 'VSAV02',   label: 'VSAV 02',    roles: ['CA','COND'] },
+        { id: 'VSAVHR01', label: 'VSAV-HR 01', roles: ['CA','COND'] },
+      ]
+    },
+    {
+      category: 'SSSM',
+      vehicles: [
+        { id: 'VLM01',     label: 'VLM 01',      roles: ['CA','COND'] },
+        { id: 'VLI01',     label: 'VLI 01',      roles: ['CA','COND'] },
+        { id: 'VSAVAR01',  label: 'VSAV-AR 01',  roles: ['CA','COND','EQ 1'] },
+        { id: 'VSMNOVI01', label: 'VSM NOVI 01', roles: ['CA','COND','EQ 1'] },
+        { id: 'VPMA01',    label: 'VPMA 01',     roles: ['CA','COND'] },
+      ]
+    },
+    {
+      category: 'SR',
+      vehicles: [
+        { id: 'VTU01',  label: 'VTU 01',  roles: ['CA','COND','EQ 1'] },
+        { id: 'FSR01',  label: 'FSR 01',  roles: ['CA','COND','EQ 1','EQ 2'] },
+        { id: 'VSRL01', label: 'VSRL 01', roles: ['CA','COND','EQ 1'] },
+      ]
+    },
+    {
+      category: 'SPE',
+      vehicles: [
+        { id: 'MIR01',        label: 'MIR 01',        roles: ['CA','COND','EQ 1'] },
+        { id: 'CYNOPHILE01',  label: 'CYNOPHILE 01',  roles: ['COND','PLONGEUR 1','PLONGEUR 2','PLONGEUR 3'] },
+        { id: 'DRAGON01',     label: 'DRAGON 01',     roles: ['PILOTE','CO-PILOTE','MÉDECIN','PLONGEUR'] },
+        { id: 'NAUTIQUE01',   label: 'NAUTIQUE 01',   roles: ['CA','COND','EQ 1'] },
+      ]
+    },
+    {
+      category: 'OPÉRATIONNEL',
+      vehicles: [
+        { id: 'VLCG01',   label: 'VLCG 01',    roles: ['CA','COND'] },
+        { id: 'VLCGHR01', label: 'VLCG-HR 01', roles: ['CA','COND'] },
+        { id: 'VPC01',    label: 'VPC 01',      roles: ['CA','COND','EQ 1'] },
+      ]
+    },
+  ];
+
+  let dispatchData = {}; // { "FPT01-CA": "Nom Prénom", ... }
+  let dispatchAgents = []; // liste des agents pour les selects
+  let dispatchSaveTimer = null;
+  let dispatchInitialized = false;
+
+  async function initDispatch() {
+    // Date du jour par défaut
+    const input = document.getElementById('dispatch-date-input');
+    if (!input.value) {
+      input.value = new Date().toISOString().split('T')[0];
+    }
+    updateDispatchDateLabel();
+
+    // Charger liste agents (une seule fois)
+    if (dispatchAgents.length === 0) {
+      const { data } = await supa.from('users').select('prenom, nom, grade').order('nom');
+      if (data) {
+        dispatchAgents = data.map(u => {
+          const name = ((u.prenom || '') + ' ' + (u.nom || '')).trim();
+          return name || u.email || '';
+        }).filter(Boolean).sort();
+      }
+    }
+
+    renderDispatchGrid();
+    await loadDispatch();
+    dispatchInitialized = true;
+  }
+
+  function updateDispatchDateLabel() {
+    const input = document.getElementById('dispatch-date-input');
+    if (!input || !input.value) return;
+    const d = new Date(input.value + 'T00:00:00');
+    const opts = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
+    const label = d.toLocaleDateString('fr-FR', opts).toUpperCase();
+    const el = document.getElementById('dispatch-date-label');
+    if (el) el.textContent = 'GARDE DU ' + label;
+  }
+
+  function renderDispatchGrid() {
+    const grid = document.getElementById('dispatch-grid');
+    if (!grid) return;
+
+    grid.innerHTML = DISPATCH_CONFIG.map(col => `
+      <div style="min-width:185px;flex:1;border-right:1px solid #2d3748;">
+        <!-- En-tête colonne -->
+        <div style="background:#c0392b;color:#fff;text-align:center;padding:8px 4px;font-size:12px;font-weight:800;letter-spacing:.5px;position:sticky;top:0;">
+          ${col.category}
+        </div>
+        <!-- Véhicules -->
+        <div style="padding:8px 6px;display:flex;flex-direction:column;gap:10px;">
+          ${col.vehicles.map(v => `
+            <div style="background:#1a2235;border-radius:6px;overflow:hidden;border:1px solid #2d3748;">
+              <div style="background:#7f1d1d;color:#fff;padding:5px 8px;font-size:11px;font-weight:700;text-align:center;letter-spacing:.3px;">
+                ${v.label}
+              </div>
+              ${v.roles.map(role => {
+                const key = v.id + '-' + role.replace(/\s/g,'_');
+                return `
+                <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #0f1117;">
+                  <span style="font-size:10px;color:#94a3b8;min-width:52px;font-weight:500;">${role} :</span>
+                  <select data-key="${key}" onchange="onDispatchChange(this)"
+                    style="flex:1;background:#0f1117;color:#e2e8f0;border:1px solid #2d3748;border-radius:4px;padding:2px 4px;font-size:11px;font-family:inherit;cursor:pointer;">
+                    <option value=""></option>
+                    ${dispatchAgents.map(a => `<option value="${a}">${a}</option>`).join('')}
+                  </select>
+                </div>`;
+              }).join('')}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadDispatch() {
+    updateDispatchDateLabel();
+    const date = document.getElementById('dispatch-date-input').value;
+    if (!date) return;
+
+    setDispatchStatus('Chargement…');
+    const { data } = await supa.from('dispatch').select('data').eq('garde_date', date).single();
+    dispatchData = (data && data.data) ? data.data : {};
+
+    // Peupler les selects
+    document.querySelectorAll('#dispatch-grid select[data-key]').forEach(sel => {
+      sel.value = dispatchData[sel.dataset.key] || '';
+    });
+    setDispatchStatus('');
+  }
+
+  function onDispatchChange(sel) {
+    dispatchData[sel.dataset.key] = sel.value;
+    clearTimeout(dispatchSaveTimer);
+    setDispatchStatus('Modification…');
+    dispatchSaveTimer = setTimeout(saveDispatch, 800);
+  }
+
+  async function saveDispatch() {
+    const date = document.getElementById('dispatch-date-input').value;
+    if (!date) return;
+    setDispatchStatus('Enregistrement…');
+    const { error } = await supa.from('dispatch').upsert({ garde_date: date, data: dispatchData }, { onConflict: 'garde_date' });
+    if (error) { setDispatchStatus('⚠️ Erreur sauvegarde'); return; }
+    setDispatchStatus('✅ Sauvegardé');
+    setTimeout(() => setDispatchStatus(''), 2500);
+  }
+
+  function setDispatchStatus(msg) {
+    const el = document.getElementById('dispatch-save-status');
+    if (el) el.textContent = msg;
+  }
+
+  async function clearDispatch() {
+    if (!confirm('Effacer toutes les affectations de cette garde ?')) return;
+    dispatchData = {};
+    document.querySelectorAll('#dispatch-grid select[data-key]').forEach(sel => sel.value = '');
+    await saveDispatch();
+  }
+
+  function printDispatch() {
+    window.print();
+  }
 
 </script>
 <!-- ══ MODAL DÉTAIL PATIENT ══ -->
