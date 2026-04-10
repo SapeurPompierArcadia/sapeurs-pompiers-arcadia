@@ -3934,8 +3934,11 @@
 
   async function deleteBilan(bilanId) {
     if (!confirm('Supprimer ce bilan définitivement ?')) return;
-    const { error } = await supa.from('bilans').delete().eq('id', String(bilanId));
-    if (error) { alert('Erreur : ' + error.message); return; }
+    console.log('[deleteBilan] bilanId reçu:', bilanId, 'type:', typeof bilanId);
+    const { data, error, status, statusText } = await supa.from('bilans').delete().eq('id', bilanId).select();
+    console.log('[deleteBilan] résultat:', { data, error, status, statusText });
+    if (error) { alert('Erreur suppression bilan : ' + error.message + '\n(code: ' + error.code + ')'); return; }
+    if (!data || data.length === 0) { alert('Aucun bilan supprimé — vérifiez les permissions Supabase (RLS).'); return; }
     closeBilanDetail();
     await loadBilans();
   }
