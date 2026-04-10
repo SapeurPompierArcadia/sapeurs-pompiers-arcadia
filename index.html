@@ -4659,17 +4659,19 @@
 
     // Charger liste agents (une seule fois)
     if (dispatchAgents.length === 0) {
-      const { data } = await supa.from('users').select('prenom, nom, grade').order('nom');
-      if (data) {
-        dispatchAgents = data.map(u => {
-          const name = ((u.prenom || '') + ' ' + (u.nom || '')).trim();
-          return name || u.email || '';
-        }).filter(Boolean).sort();
-      }
+      try {
+        const { data } = await supa.from('users').select('prenom, nom, grade').order('nom');
+        if (data) {
+          dispatchAgents = data.map(u => {
+            const name = ((u.prenom || '') + ' ' + (u.nom || '')).trim();
+            return name || u.email || '';
+          }).filter(Boolean).sort();
+        }
+      } catch(e) { console.warn('initDispatch agents error:', e); }
     }
 
-    renderDispatchGrid();
-    await loadDispatch();
+    renderDispatchGrid(); // toujours afficher la grille
+    try { await loadDispatch(); } catch(e) { console.warn('loadDispatch error:', e); setDispatchStatus(''); }
     dispatchInitialized = true;
   }
 
