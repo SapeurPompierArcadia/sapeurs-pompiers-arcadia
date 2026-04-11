@@ -2750,6 +2750,7 @@
 
   function renderResponsables() {
     const grid    = document.getElementById('responsables-grid');
+    console.log('[responsables] currentRole =', JSON.stringify(currentRole));
     const isAdmin = currentRole === 'admin';
 
     grid.innerHTML = SERVICES_CONFIG.map(s => {
