@@ -2730,7 +2730,14 @@
   ];
 
   var _respUsers = [];
-  var _respData  = {};
+  var _respData  = {}; // { service_id: [uuid, uuid, ...] }
+
+  const RESP_GRADE_COLORS = {
+    'Colonel': '#3b82f6', 'Lieutenant-colonel': '#6366f1', 'Commandant': '#8b5cf6',
+    'Capitaine': '#a855f7', 'Lieutenant': '#ec4899', 'Adjudant-chef': '#f97316',
+    'Adjudant': '#f59e0b', 'Sergent-chef': '#84cc16', 'Sergent': '#22c55e',
+    'Caporal-chef': '#14b8a6', 'Caporal': '#06b6d4', 'Sapeur': '#64748b',
+  };
 
   async function loadResponsables() {
     const grid = document.getElementById('responsables-grid');
@@ -2738,95 +2745,100 @@
 
     const [{ data: users }, { data: resps }] = await Promise.all([
       supa.from('users').select('id,prenom,nom,grade').order('prenom'),
-      supa.from('responsables').select('service_id,user_id'),
+      supa.from('responsables').select('service_id,user_ids'),
     ]);
 
     _respUsers = users || [];
     _respData  = {};
-    (resps || []).forEach(r => { _respData[r.service_id] = r.user_id; });
+    (resps || []).forEach(r => {
+      _respData[r.service_id] = Array.isArray(r.user_ids) ? r.user_ids : [];
+    });
 
     renderResponsables();
   }
 
   function renderResponsables() {
     const grid    = document.getElementById('responsables-grid');
-    console.log('[responsables] currentRole =', JSON.stringify(currentRole));
     const isAdmin = (currentRole || '').toLowerCase() === 'admin';
 
     grid.innerHTML = SERVICES_CONFIG.map(s => {
-      const userId   = _respData[s.id] || null;
-      const user     = userId ? _respUsers.find(u => u.id === userId) : null;
-      const fullName = user ? (user.prenom + ' ' + user.nom) : null;
-      const initials = user ? (user.prenom[0] + user.nom[0]).toUpperCase() : null;
-      const grade    = user ? (user.grade || '') : null;
+      const userIds       = _respData[s.id] || [];
+      const selectedUsers = userIds.map(id => _respUsers.find(u => u.id === id)).filter(Boolean);
+      const borderStyle   = s.soon ? 'border-color:#f59e0b33;' : '';
 
-      // Couleur avatar selon grade
-      const gradeColors = {
-        'Colonel': '#3b82f6', 'Lieutenant-colonel': '#6366f1', 'Commandant': '#8b5cf6',
-        'Capitaine': '#a855f7', 'Lieutenant': '#ec4899', 'Adjudant-chef': '#f97316',
-        'Adjudant': '#f59e0b', 'Sergent-chef': '#84cc16', 'Sergent': '#22c55e',
-        'Caporal-chef': '#14b8a6', 'Caporal': '#06b6d4', 'Sapeur': '#64748b',
-      };
-      const avatarColor = grade && gradeColors[grade] ? gradeColors[grade] : '#6366f1';
-
-      const borderStyle = s.soon ? 'border-color:#f59e0b33;' : '';
-
-      // Zone avatar + info
-      let infoHtml;
+      // Zone responsables affichés
+      let infoHtml = '';
       if (s.soon) {
         infoHtml = `
           <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:42px;height:42px;border-radius:50%;background:#f59e0b33;border:1px solid #f59e0b55;flex-shrink:0;
-              display:flex;align-items:center;justify-content:center;font-size:18px;">🕐</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;color:#fbbf24;font-style:italic;">Service en cours de création</div>
-            </div>
+            <div style="width:38px;height:38px;border-radius:50%;background:#f59e0b33;border:1px solid #f59e0b55;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;font-size:16px;">🕐</div>
+            <div style="flex:1;font-size:13px;color:#fbbf24;font-style:italic;">Service en cours de création</div>
             <span style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35);
               border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap;">Prochainement</span>
           </div>`;
-      } else if (user) {
+      } else if (selectedUsers.length === 0) {
         infoHtml = `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isAdmin ? 12 : 0}px;">
-            <div style="width:42px;height:42px;border-radius:50%;background:${avatarColor};flex-shrink:0;
-              display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;">${initials}</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;font-weight:700;color:#e2e8f0;">${fullName}</div>
-              <div style="font-size:11px;color:#64748b;margin-top:2px;">Responsable du service</div>
-            </div>
-            <span style="background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3);
-              border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap;">${grade || '—'}</span>
-          </div>`;
-      } else {
-        infoHtml = `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isAdmin ? 12 : 0}px;">
-            <div style="width:42px;height:42px;border-radius:50%;background:#475569;flex-shrink:0;
-              display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;color:#64748b;font-style:italic;">Poste non attribué</div>
-            </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isAdmin ? 10 : 0}px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:#475569;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>
+            <div style="flex:1;font-size:13px;color:#64748b;font-style:italic;">Poste non attribué</div>
             <span style="background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid rgba(100,116,139,.3);
               border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">Libre</span>
           </div>`;
+      } else {
+        infoHtml = `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${isAdmin ? 10 : 0}px;">` +
+          selectedUsers.map(u => {
+            const initials   = (u.prenom[0] + u.nom[0]).toUpperCase();
+            const avatarColor = RESP_GRADE_COLORS[u.grade] || '#6366f1';
+            return `
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:${avatarColor};flex-shrink:0;
+                  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;">${initials}</div>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:700;color:#e2e8f0;">${u.prenom} ${u.nom}</div>
+                  <div style="font-size:11px;color:#64748b;">Responsable du service</div>
+                </div>
+                <span style="background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.25);
+                  border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;white-space:nowrap;">${u.grade || '—'}</span>
+              </div>`;
+          }).join('') + '</div>';
       }
 
-      // Dropdown admin uniquement, masqué si "soon"
-      let dropdownHtml = '';
+      // Liste de cases à cocher (admin uniquement, hors "soon")
+      let checkboxHtml = '';
       if (isAdmin && !s.soon) {
-        const opts = _respUsers.map(u =>
-          `<option value="${u.id}" ${u.id === userId ? 'selected' : ''}>${u.prenom} ${u.nom}${u.grade ? ' — ' + u.grade : ''}</option>`
-        ).join('');
-        dropdownHtml = `
-          <select onchange="saveResponsable('${s.id}', this.value)"
-            style="width:100%;padding:7px 10px;background:#1e293b;border:1px solid #2d3748;border-radius:8px;
-            color:#e2e8f0;font-size:12px;font-family:inherit;cursor:pointer;outline:none;">
-            <option value="">— Aucun responsable —</option>
-            ${opts}
-          </select>`;
+        const items = _respUsers.map(u => {
+          const checked = userIds.includes(u.id);
+          const initials = (u.prenom[0] + u.nom[0]).toUpperCase();
+          const col = RESP_GRADE_COLORS[u.grade] || '#6366f1';
+          return `
+            <label style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;
+              cursor:pointer;transition:background .12s;"
+              onmouseover="this.style.background='rgba(99,102,241,.08)'"
+              onmouseout="this.style.background='transparent'">
+              <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''}
+                onchange="toggleResponsable('${s.id}', '${u.id}', this.checked)"
+                style="width:15px;height:15px;accent-color:#6366f1;cursor:pointer;flex-shrink:0;">
+              <div style="width:26px;height:26px;border-radius:50%;background:${col};flex-shrink:0;
+                display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;">${initials}</div>
+              <span style="font-size:12px;color:#e2e8f0;">${u.prenom} ${u.nom}${u.grade ? '<span style="color:#64748b;"> — ' + u.grade + '</span>' : ''}</span>
+            </label>`;
+        }).join('');
+
+        checkboxHtml = `
+          <div style="border-top:1px solid #1e293b;margin-top:2px;padding-top:8px;">
+            <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
+              letter-spacing:.06em;margin-bottom:4px;padding:0 2px;">Sélectionner les responsables</div>
+            <div style="max-height:180px;overflow-y:auto;border-radius:8px;">
+              ${items}
+            </div>
+          </div>`;
       }
 
       return `
         <div class="punch-section-card" style="margin-bottom:0;${borderStyle}">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
             <span style="font-size:20px;">${s.icon}</span>
             <div>
               <div style="font-size:14px;font-weight:700;color:#e2e8f0;">${s.label}</div>
@@ -2834,18 +2846,27 @@
             </div>
           </div>
           ${infoHtml}
-          ${dropdownHtml}
+          ${checkboxHtml}
         </div>`;
     }).join('');
   }
 
-  async function saveResponsable(serviceId, userId) {
-    if (!userId) {
+  async function toggleResponsable(serviceId, userId, checked) {
+    let ids = [...(_respData[serviceId] || [])];
+    if (checked) {
+      if (!ids.includes(userId)) ids.push(userId);
+    } else {
+      ids = ids.filter(id => id !== userId);
+    }
+    _respData[serviceId] = ids;
+    // Mettre à jour l'affichage immédiatement (sans attendre Supabase)
+    renderResponsables();
+    // Sauvegarder
+    if (ids.length === 0) {
       await supa.from('responsables').delete().eq('service_id', serviceId);
     } else {
-      await supa.from('responsables').upsert({ service_id: serviceId, user_id: userId }, { onConflict: 'service_id' });
+      await supa.from('responsables').upsert({ service_id: serviceId, user_ids: ids }, { onConflict: 'service_id' });
     }
-    await loadResponsables();
   }
 
   // ══ ADMIN ══
