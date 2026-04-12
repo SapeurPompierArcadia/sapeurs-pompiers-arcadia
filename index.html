@@ -2805,21 +2805,22 @@
           }).join('') + '</div>';
       }
 
-      // Liste de cases à cocher (admin uniquement, hors "soon")
+      // Liste de cases à cocher (toujours visible, modifiable admins uniquement)
       let checkboxHtml = '';
-      if (isAdmin && !s.soon) {
+      if (!s.soon) {
         const items = _respUsers.map(u => {
-          const checked = userIds.includes(u.id);
+          const checked  = userIds.includes(u.id);
           const initials = (u.prenom[0] + u.nom[0]).toUpperCase();
-          const col = RESP_GRADE_COLORS[u.grade] || '#6366f1';
+          const col      = RESP_GRADE_COLORS[u.grade] || '#6366f1';
+          const disabled = !isAdmin;
           return `
             <label style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;
-              cursor:pointer;transition:background .12s;"
-              onmouseover="this.style.background='rgba(99,102,241,.08)'"
-              onmouseout="this.style.background='transparent'">
-              <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''}
+              cursor:${disabled ? 'default' : 'pointer'};opacity:${disabled && !checked ? '.45' : '1'};
+              transition:background .12s;"
+              ${disabled ? '' : `onmouseover="this.style.background='rgba(99,102,241,.08)'" onmouseout="this.style.background='transparent'"`}>
+              <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}
                 onchange="toggleResponsable('${s.id}', '${u.id}', this.checked)"
-                style="width:15px;height:15px;accent-color:#6366f1;cursor:pointer;flex-shrink:0;">
+                style="width:15px;height:15px;accent-color:#6366f1;cursor:${disabled ? 'default' : 'pointer'};flex-shrink:0;">
               <div style="width:26px;height:26px;border-radius:50%;background:${col};flex-shrink:0;
                 display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;">${initials}</div>
               <span style="font-size:12px;color:#e2e8f0;">${u.prenom} ${u.nom}${u.grade ? '<span style="color:#64748b;"> — ' + u.grade + '</span>' : ''}</span>
@@ -2828,8 +2829,12 @@
 
         checkboxHtml = `
           <div style="border-top:1px solid #1e293b;margin-top:2px;padding-top:8px;">
-            <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
-              letter-spacing:.06em;margin-bottom:4px;padding:0 2px;">Sélectionner les responsables</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding:0 2px;">
+              <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em;">
+                Responsables du service
+              </div>
+              ${!isAdmin ? '<div style="font-size:10px;color:#475569;font-style:italic;">Lecture seule</div>' : ''}
+            </div>
             <div style="max-height:180px;overflow-y:auto;border-radius:8px;">
               ${items}
             </div>
@@ -2852,6 +2857,7 @@
   }
 
   async function toggleResponsable(serviceId, userId, checked) {
+    if ((currentRole || '').toLowerCase() !== 'admin') return;
     let ids = [...(_respData[serviceId] || [])];
     if (checked) {
       if (!ids.includes(userId)) ids.push(userId);
