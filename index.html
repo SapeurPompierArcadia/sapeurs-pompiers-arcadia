@@ -2710,8 +2710,9 @@
     { label: 'Dragon',                              soon: false },
     { label: 'GRIMP',                               soon: false },
     { label: 'Nautique',                            soon: false },
-    { label: 'Cyno',                                soon: true  },
-    { label: 'NRBCE',                               soon: true  },
+    { label: 'Cyno',                                soon: false  },
+    { label: 'NRBCE',                               soon: false
+      },
     { label: 'CTA-CODIS-COS',                       soon: false },
   ];
 
@@ -2827,16 +2828,26 @@
             </label>`;
         }).join('');
 
+        const panelId = 'resp-panel-' + s.id;
         checkboxHtml = `
-          <div style="border-top:1px solid #1e293b;margin-top:2px;padding-top:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding:0 2px;">
-              <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em;">
-                Responsables du service
+          <div style="border-top:1px solid #1e293b;margin-top:8px;padding-top:8px;">
+            <button onclick="toggleRespPanel('${panelId}')"
+              style="width:100%;display:flex;align-items:center;justify-content:space-between;
+              background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;
+              padding:8px 12px;cursor:pointer;font-family:inherit;transition:background .15s;"
+              onmouseover="this.style.background='rgba(99,102,241,.15)'"
+              onmouseout="this.style.background='rgba(99,102,241,.08)'">
+              <span style="font-size:12px;font-weight:600;color:#818cf8;">
+                👥 ${selectedUsers.length > 0 ? selectedUsers.length + ' responsable' + (selectedUsers.length > 1 ? 's' : '') : 'Choisir les responsables'}
+              </span>
+              <span id="${panelId}-arrow" style="color:#818cf8;font-size:14px;transition:transform .2s;">▼</span>
+            </button>
+            <div id="${panelId}" style="display:none;margin-top:4px;border:1px solid rgba(99,102,241,.2);
+              border-radius:8px;overflow:hidden;">
+              <div style="max-height:200px;overflow-y:auto;">
+                ${items}
               </div>
-              ${!isAdmin ? '<div style="font-size:10px;color:#475569;font-style:italic;">Lecture seule</div>' : ''}
-            </div>
-            <div style="max-height:180px;overflow-y:auto;border-radius:8px;">
-              ${items}
+              ${!isAdmin ? '<div style="padding:6px 12px;font-size:11px;color:#475569;font-style:italic;border-top:1px solid #1e293b;">Lecture seule — modification réservée aux admins</div>' : ''}
             </div>
           </div>`;
       }
@@ -2854,6 +2865,15 @@
           ${checkboxHtml}
         </div>`;
     }).join('');
+  }
+
+  function toggleRespPanel(panelId) {
+    const panel = document.getElementById(panelId);
+    const arrow = document.getElementById(panelId + '-arrow');
+    if (!panel) return;
+    const open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
   }
 
   async function toggleResponsable(serviceId, userId, checked) {
