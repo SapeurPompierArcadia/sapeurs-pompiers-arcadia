@@ -2758,13 +2758,17 @@
     renderResponsables();
   }
 
+  const NON_DISPO_FLAG = '__non_disponible__';
+
   function renderResponsables() {
     const grid    = document.getElementById('responsables-grid');
     const isAdmin = (currentRole || '').toLowerCase() === 'admin';
 
     grid.innerHTML = SERVICES_CONFIG.map(s => {
       const userIds       = _respData[s.id] || [];
-      const selectedUsers = userIds.map(id => _respUsers.find(u => u.id === id)).filter(Boolean);
+      const isNonDispo    = userIds.includes(NON_DISPO_FLAG);
+      const realIds       = userIds.filter(id => id !== NON_DISPO_FLAG);
+      const selectedUsers = realIds.map(id => _respUsers.find(u => u.id === id)).filter(Boolean);
       const borderStyle   = s.soon ? 'border-color:#f59e0b33;' : '';
 
       // Zone responsables affichés
@@ -2777,6 +2781,15 @@
             <div style="flex:1;font-size:13px;color:#fbbf24;font-style:italic;">Service en cours de création</div>
             <span style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35);
               border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap;">Prochainement</span>
+          </div>`;
+      } else if (isNonDispo) {
+        infoHtml = `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isAdmin ? 10 : 0}px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:#7f1d1d33;border:1px solid #ef444455;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;font-size:16px;">🚫</div>
+            <div style="flex:1;font-size:13px;color:#f87171;font-style:italic;">Non Disponible</div>
+            <span style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.35);
+              border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">Indisponible</span>
           </div>`;
       } else if (selectedUsers.length === 0) {
         infoHtml = `
@@ -2806,11 +2819,11 @@
           }).join('') + '</div>';
       }
 
-      // Liste de cases à cocher (toujours visible, modifiable admins uniquement)
+      // Liste de cases à cocher + toggle Non Disponible (admin uniquement)
       let checkboxHtml = '';
       if (!s.soon) {
         const items = _respUsers.map(u => {
-          const checked  = userIds.includes(u.id);
+          const checked  = realIds.includes(u.id);
           const initials = (u.prenom[0] + u.nom[0]).toUpperCase();
           const col      = RESP_GRADE_COLORS[u.grade] || '#6366f1';
           const disabled = !isAdmin;
@@ -2829,6 +2842,18 @@
         }).join('');
 
         const panelId = 'resp-panel-' + s.id;
+
+        // Toggle Non Disponible (admin uniquement)
+        const nonDispoToggle = isAdmin ? `
+          <label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+            cursor:pointer;border-top:1px solid #1e293b;margin-top:4px;"
+            onmouseover="this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.background='transparent'">
+            <input type="checkbox" ${isNonDispo ? 'checked' : ''}
+              onchange="toggleNonDispo('${s.id}', this.checked)"
+              style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;">
+            <span style="font-size:12px;font-weight:600;color:#f87171;">🚫 Marquer comme Non Disponible</span>
+          </label>` : '';
+
         checkboxHtml = `
           <div style="border-top:1px solid #1e293b;margin-top:8px;padding-top:8px;">
             <button onclick="toggleRespPanel('${panelId}')"
@@ -2848,6 +2873,7 @@
                 ${items}
               </div>
               ${!isAdmin ? '<div style="padding:6px 12px;font-size:11px;color:#475569;font-style:italic;border-top:1px solid #1e293b;">Lecture seule — modification réservée aux admins</div>' : ''}
+              ${nonDispoToggle}
             </div>
           </div>`;
       }
@@ -2876,18 +2902,34 @@
     if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
   }
 
+  async function toggleNonDispo(serviceId, checked) {
+    if ((currentRole || '').toLowerCase() !== 'admin') return;
+    // Si on coche Non Disponible : on retire tous les vrais membres et on met le flag
+    // Si on décoche : on retire juste le flag
+    let ids = (_respData[serviceId] || []).filter(id => id !== NON_DISPO_FLAG);
+    if (checked) {
+      ids = [NON_DISPO_FLAG]; // remplace tout
+    }
+    _respData[serviceId] = ids;
+    renderResponsables();
+    if (ids.length === 0) {
+      await supa.from('responsables').delete().eq('service_id', serviceId);
+    } else {
+      await supa.from('responsables').upsert({ service_id: serviceId, user_ids: ids }, { onConflict: 'service_id' });
+    }
+  }
+
   async function toggleResponsable(serviceId, userId, checked) {
     if ((currentRole || '').toLowerCase() !== 'admin') return;
-    let ids = [...(_respData[serviceId] || [])];
+    // On retire le flag non_dispo si on attribue un vrai membre
+    let ids = (_respData[serviceId] || []).filter(id => id !== NON_DISPO_FLAG);
     if (checked) {
       if (!ids.includes(userId)) ids.push(userId);
     } else {
       ids = ids.filter(id => id !== userId);
     }
     _respData[serviceId] = ids;
-    // Mettre à jour l'affichage immédiatement (sans attendre Supabase)
     renderResponsables();
-    // Sauvegarder
     if (ids.length === 0) {
       await supa.from('responsables').delete().eq('service_id', serviceId);
     } else {
@@ -3350,51 +3392,72 @@
   function adminInlineEditHours(userId, userName, currentMinutes) {
     const cell = document.getElementById('hours-cell-' + userId);
     if (!cell) return;
-    const curH = Math.floor(currentMinutes / 60);
-    const curM = currentMinutes % 60;
     cell.onclick = null;
+    const today = new Date().toISOString().split('T')[0];
     cell.innerHTML = `
-      <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
-        <input type="number" id="edit-h-${userId}" value="${curH}" min="0" max="999"
-          style="width:48px;background:#0f1117;border:1px solid #6366f1;border-radius:6px;
-          padding:4px 6px;font-size:13px;color:#e2e8f0;font-family:inherit;text-align:center;outline:none;">
-        <span style="color:#64748b;font-size:12px;">h</span>
-        <input type="number" id="edit-m-${userId}" value="${curM}" min="0" max="59"
-          style="width:42px;background:#0f1117;border:1px solid #6366f1;border-radius:6px;
-          padding:4px 6px;font-size:13px;color:#e2e8f0;font-family:inherit;text-align:center;outline:none;">
-        <span style="color:#64748b;font-size:12px;">m</span>
-      </div>
-      <div style="display:flex;gap:4px;justify-content:center;margin-top:6px;">
-        <button onclick="adminSaveHours('${userId}', '${userName.replace(/'/g,"\\'")}', ${currentMinutes})"
-          style="padding:3px 10px;background:#10b981;border:none;border-radius:5px;
-          color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">OK</button>
-        <button onclick="loadAllAgentsRecap()"
-          style="padding:3px 8px;background:#1e293b;border:1px solid #334155;border-radius:5px;
-          color:#94a3b8;font-size:11px;cursor:pointer;font-family:inherit;">✕</button>
+      <div style="background:#0f1117;border:1px solid #6366f1;border-radius:8px;
+        padding:10px 12px;text-align:left;min-width:190px;">
+        <div style="font-size:11px;font-weight:600;color:#818cf8;margin-bottom:8px;text-align:center;">
+          ➕ Ajouter un service
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Date</div>
+          <input type="date" id="edit-date-${userId}" value="${today}"
+            style="width:100%;background:#1a2235;border:1px solid #1e293b;border-radius:6px;
+            padding:5px 8px;font-size:12px;color:#e2e8f0;font-family:inherit;outline:none;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Début</div>
+            <input type="time" id="edit-start-${userId}"
+              style="width:100%;background:#1a2235;border:1px solid #1e293b;border-radius:6px;
+              padding:5px 6px;font-size:12px;color:#e2e8f0;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Fin</div>
+            <input type="time" id="edit-end-${userId}"
+              style="width:100%;background:#1a2235;border:1px solid #1e293b;border-radius:6px;
+              padding:5px 6px;font-size:12px;color:#e2e8f0;font-family:inherit;outline:none;">
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;justify-content:center;">
+          <button onclick="adminSaveHours('${userId}', '${userName.replace(/'/g,"\\'")}', ${currentMinutes})"
+            style="padding:4px 12px;background:#10b981;border:none;border-radius:5px;
+            color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Ajouter</button>
+          <button onclick="loadAllAgentsRecap()"
+            style="padding:4px 8px;background:#1e293b;border:1px solid #334155;border-radius:5px;
+            color:#94a3b8;font-size:11px;cursor:pointer;font-family:inherit;">✕</button>
+        </div>
       </div>`;
   }
 
   async function adminSaveHours(userId, userName, previousMinutes) {
-    const hEl = document.getElementById('edit-h-' + userId);
-    const mEl = document.getElementById('edit-m-' + userId);
-    if (!hEl || !mEl) return;
+    const dateEl  = document.getElementById('edit-date-'  + userId);
+    const startEl = document.getElementById('edit-start-' + userId);
+    const endEl   = document.getElementById('edit-end-'   + userId);
+    if (!dateEl || !startEl || !endEl) return;
 
-    const newTotal = (parseInt(hEl.value) || 0) * 60 + (parseInt(mEl.value) || 0);
-    const diff     = newTotal - previousMinutes;
+    const dateVal  = dateEl.value;
+    const startVal = startEl.value;
+    const endVal   = endEl.value;
 
-    if (diff === 0) { loadAllAgentsRecap(); return; }
+    if (!dateVal || !startVal || !endVal) {
+      alert('Veuillez renseigner la date, l\'heure de début et l\'heure de fin.');
+      return;
+    }
 
-    // Ajout d'un service d'ajustement
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    startOfWeek.setHours(12, 0, 0, 0);
+    const startDt  = new Date(`${dateVal}T${startVal}`);
+    const endDt    = new Date(`${dateVal}T${endVal}`);
+    const duration = Math.round((endDt - startDt) / 60000);
+
+    if (duration <= 0) { alert('L\'heure de fin doit être après l\'heure de début.'); return; }
 
     const { error } = await supa.from('shifts').insert({
       user_id:          userId,
       user_name:        userName,
-      start_time:       startOfWeek.toISOString(),
-      end_time:         startOfWeek.toISOString(),
-      duration_minutes: diff
+      start_time:       startDt.toISOString(),
+      end_time:         endDt.toISOString(),
+      duration_minutes: duration
     });
 
     if (error) { alert('Erreur : ' + error.message); return; }
