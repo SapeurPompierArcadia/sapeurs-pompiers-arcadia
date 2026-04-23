@@ -2719,15 +2719,20 @@
   // ══ RESPONSABLES DES SERVICES ══
 
   const SERVICES_CONFIG = [
-    { id: 'mir',       icon: '🧠', label: 'MIR / Psychologie',      sub: null,                                            soon: false },
-    { id: 'formateur', icon: '🎓', label: 'Formateur / Recruteur',   sub: 'Incendie · Secours Routier · Secourisme',       soon: false },
-    { id: 'samu',      icon: '🚑', label: 'SAMU',                    sub: "Service d'Aide Médicale d'Urgence",             soon: false },
-    { id: 'dragon',    icon: '🐉', label: 'Dragon',                  sub: 'Unité Dragon',                                  soon: false },
-    { id: 'grimp',     icon: '🧗', label: 'GRIMP',                   sub: 'Groupe Rech. & Intervention Milieux Périlleux', soon: false },
-    { id: 'nautique',  icon: '🌊', label: 'Nautique',                sub: 'Unité de Secours Nautique',                     soon: false },
-    { id: 'cyno',      icon: '🐕', label: 'Cyno',                    sub: 'Unité Cynophile',                               soon: false },
-    { id: 'nrbce',     icon: '☢️', label: 'NRBCE',                  sub: 'Nucl. · Radio. · Bio. · Chim. · Explosif',      soon: false },
-    { id: 'cta',       icon: '📡', label: 'CTA-CODIS-COS',           sub: 'Traitement Alertes · Opérationnel · Commandement', soon: false },
+    { id: 'mir',        icon: '🧠', label: 'MIR / Psychologie',      sub: null,                                            soon: false },
+    { id: 'formateur',  icon: '🎓', label: 'Formateur / Recruteur',   sub: 'Incendie · Secours Routier · Secourisme',       soon: false },
+    { id: 'samu',       icon: '🚑', label: 'SAMU',                    sub: "Service d'Aide Médicale d'Urgence",             soon: false },
+    { id: 'medecin',    icon: '⚕️', label: 'Médecin',                sub: 'Médecin de la caserne',                         soon: false },
+    { id: 'infirmier',  icon: '💉', label: 'Infirmier',               sub: 'Infirmier(e) de service',                      soon: false },
+    { id: 'pharmacien', icon: '💊', label: 'Pharmacien',              sub: 'Pharmacien de la caserne',                      soon: false },
+    { id: 'chef-agres', icon: '🚒', label: 'Chef Agres',              sub: "Chef d'Agrès",                                  soon: false },
+    { id: 'rh',         icon: '📋', label: 'RH',                     sub: 'Ressources Humaines',                           soon: false },
+    { id: 'dragon',     icon: '🐉', label: 'Dragon',                  sub: 'Unité héliportée',                              soon: false },
+    { id: 'grimp',      icon: '🧗', label: 'GRIMP',                   sub: 'Groupe Rech. & Intervention Milieux Périlleux', soon: false },
+    { id: 'nautique',   icon: '🌊', label: 'Nautique',                sub: 'Unité de Secours Nautique',                     soon: false },
+    { id: 'cyno',       icon: '🐕', label: 'Cyno',                    sub: 'Unité Cynophile',                               soon: false },
+    { id: 'nrbce',      icon: '☢️', label: 'NRBCE',                  sub: 'Nucl. · Radio. · Bio. · Chim. · Explosif',      soon: false },
+    { id: 'cta',        icon: '📡', label: 'CTA-CODIS-COS',           sub: 'Traitement Alertes · Opérationnel · Commandement', soon: false },
   ];
 
   var _respUsers = [];
@@ -2759,6 +2764,7 @@
   }
 
   const NON_DISPO_FLAG = '__non_disponible__';
+  const DISPO_FLAG     = '__disponible__';
 
   function renderResponsables() {
     const grid    = document.getElementById('responsables-grid');
@@ -2767,7 +2773,8 @@
     grid.innerHTML = SERVICES_CONFIG.map(s => {
       const userIds       = _respData[s.id] || [];
       const isNonDispo    = userIds.includes(NON_DISPO_FLAG);
-      const realIds       = userIds.filter(id => id !== NON_DISPO_FLAG);
+      const isDispo       = userIds.includes(DISPO_FLAG);
+      const realIds       = userIds.filter(id => id !== NON_DISPO_FLAG && id !== DISPO_FLAG);
       const selectedUsers = realIds.map(id => _respUsers.find(u => u.id === id)).filter(Boolean);
       const borderStyle   = s.soon ? 'border-color:#f59e0b33;' : '';
 
@@ -2781,6 +2788,15 @@
             <div style="flex:1;font-size:13px;color:#fbbf24;font-style:italic;">Service en cours de création</div>
             <span style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35);
               border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap;">Prochainement</span>
+          </div>`;
+      } else if (isDispo) {
+        infoHtml = `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isAdmin ? 10 : 0}px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:#05471533;border:1px solid #10b98155;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;font-size:16px;">✅</div>
+            <div style="flex:1;font-size:13px;color:#10b981;font-style:italic;">Service Disponible</div>
+            <span style="background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.35);
+              border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">Disponible</span>
           </div>`;
       } else if (isNonDispo) {
         infoHtml = `
@@ -2843,16 +2859,26 @@
 
         const panelId = 'resp-panel-' + s.id;
 
-        // Toggle Non Disponible (admin uniquement)
+        // Toggles Disponible / Non Disponible (admin uniquement)
         const nonDispoToggle = isAdmin ? `
-          <label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
-            cursor:pointer;border-top:1px solid #1e293b;margin-top:4px;"
-            onmouseover="this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.background='transparent'">
-            <input type="checkbox" ${isNonDispo ? 'checked' : ''}
-              onchange="toggleNonDispo('${s.id}', this.checked)"
-              style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;">
-            <span style="font-size:12px;font-weight:600;color:#f87171;">🚫 Marquer comme Non Disponible</span>
-          </label>` : '';
+          <div style="border-top:1px solid #1e293b;margin-top:4px;display:flex;flex-direction:column;gap:2px;">
+            <label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+              cursor:pointer;"
+              onmouseover="this.style.background='rgba(16,185,129,.08)'" onmouseout="this.style.background='transparent'">
+              <input type="checkbox" ${isDispo ? 'checked' : ''}
+                onchange="toggleDispoService('${s.id}', this.checked)"
+                style="width:15px;height:15px;accent-color:#10b981;cursor:pointer;flex-shrink:0;">
+              <span style="font-size:12px;font-weight:600;color:#10b981;">✅ Marquer comme Disponible</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+              cursor:pointer;"
+              onmouseover="this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.background='transparent'">
+              <input type="checkbox" ${isNonDispo ? 'checked' : ''}
+                onchange="toggleNonDispo('${s.id}', this.checked)"
+                style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;">
+              <span style="font-size:12px;font-weight:600;color:#f87171;">🚫 Marquer comme Non Disponible</span>
+            </label>
+          </div>` : '';
 
         checkboxHtml = `
           <div style="border-top:1px solid #1e293b;margin-top:8px;padding-top:8px;">
@@ -2902,14 +2928,23 @@
     if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
   }
 
+  async function toggleDispoService(serviceId, checked) {
+    if ((currentRole || '').toLowerCase() !== 'admin') return;
+    let ids = (_respData[serviceId] || []).filter(id => id !== DISPO_FLAG && id !== NON_DISPO_FLAG);
+    if (checked) ids = [DISPO_FLAG];
+    _respData[serviceId] = ids;
+    renderResponsables();
+    if (ids.length === 0) {
+      await supa.from('responsables').delete().eq('service_id', serviceId);
+    } else {
+      await supa.from('responsables').upsert({ service_id: serviceId, user_ids: ids }, { onConflict: 'service_id' });
+    }
+  }
+
   async function toggleNonDispo(serviceId, checked) {
     if ((currentRole || '').toLowerCase() !== 'admin') return;
-    // Si on coche Non Disponible : on retire tous les vrais membres et on met le flag
-    // Si on décoche : on retire juste le flag
-    let ids = (_respData[serviceId] || []).filter(id => id !== NON_DISPO_FLAG);
-    if (checked) {
-      ids = [NON_DISPO_FLAG]; // remplace tout
-    }
+    let ids = (_respData[serviceId] || []).filter(id => id !== NON_DISPO_FLAG && id !== DISPO_FLAG);
+    if (checked) ids = [NON_DISPO_FLAG];
     _respData[serviceId] = ids;
     renderResponsables();
     if (ids.length === 0) {
@@ -2921,8 +2956,8 @@
 
   async function toggleResponsable(serviceId, userId, checked) {
     if ((currentRole || '').toLowerCase() !== 'admin') return;
-    // On retire le flag non_dispo si on attribue un vrai membre
-    let ids = (_respData[serviceId] || []).filter(id => id !== NON_DISPO_FLAG);
+    // On retire les flags si on attribue un vrai membre
+    let ids = (_respData[serviceId] || []).filter(id => id !== NON_DISPO_FLAG && id !== DISPO_FLAG);
     if (checked) {
       if (!ids.includes(userId)) ids.push(userId);
     } else {
