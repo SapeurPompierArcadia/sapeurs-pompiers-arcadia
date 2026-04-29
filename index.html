@@ -2204,8 +2204,8 @@
     const shiftsChannel = supa.channel('rt-shifts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, async () => {
         await loadShifts();
-        if (currentPage === 'accueil') loadActiveSPs();
-        if (currentPage === 'recap')   renderRecap();
+        loadActiveSPs(); // Toujours rafraîchir — le panel accueil doit rester à jour
+        if (currentPage === 'recap') renderRecap();
       })
       .subscribe();
 
@@ -2396,6 +2396,9 @@
       // Mettre à jour le badge statut sur l'accueil
       const badge = document.querySelector('.status-row .badge-hors');
       if (badge) { badge.textContent = 'EN SERVICE'; badge.className = 'badge-service'; }
+
+      // Rafraîchir la liste SP en service sur l'accueil
+      loadActiveSPs();
 
       // Vérifier immédiatement si un auto punch-out est nécessaire
       checkAutoPunchOut();
@@ -3599,9 +3602,8 @@
 
       punchTimer = setInterval(updateElapsed, 1000);
       updateElapsed();
-      updateSpList();
 
-      // Sauvegarder début shift dans Supabase
+      // Sauvegarder début shift dans Supabase — updateSpList APRÈS l'insert
       if (currentUser) {
         const { data } = await supa.from('shifts').insert({
           user_id:    currentUser.id,
@@ -3610,6 +3612,7 @@
         }).select();
         if (data?.[0]) currentShiftId = data[0].id;
       }
+      updateSpList(); // Appelé APRÈS l'insert pour que Supabase ait le shift
 
     } else {
       clearInterval(punchTimer);
