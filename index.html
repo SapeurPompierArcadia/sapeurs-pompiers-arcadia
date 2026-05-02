@@ -2195,6 +2195,21 @@
     if (menuCardRecap) menuCardRecap.style.display  = show ? ''     : 'none';
   }
 
+  // Debounce utilitaire : évite les cascades de requêtes si plusieurs events arrivent d'un coup
+  function debounce(fn, delay) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+  }
+
+  const _rtHandleShifts   = debounce(async () => {
+    await loadShifts();
+    loadActiveSPs();
+    if (currentPage === 'recap') renderRecap();
+  }, 300);
+
+  const _rtHandleBilans   = debounce(async () => { await loadBilans(); }, 300);
+  const _rtHandlePatients = debounce(async () => { await loadPatients(); }, 300);
+
   function setupRealtimeSubscriptions() {
     // Supprimer les anciens abonnements si reconnexion
     realtimeChannels.forEach(ch => supa.removeChannel(ch));
@@ -2202,17 +2217,12 @@
 
     // ── Changements sur les services (shifts) ──
     const shiftsChannel = supa.channel('rt-shifts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, async () => {
-        await loadShifts();
-        loadActiveSPs(); // Toujours rafraîchir — le panel accueil doit rester à jour
-        if (currentPage === 'recap') renderRecap();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, _rtHandleShifts)
       .subscribe();
 
     // ── Changements sur les utilisateurs (grade, rôle, nom) ──
     const usersChannel = supa.channel('rt-users')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async (payload) => {
-        // Mettre à jour notre propre profil si c'est notre ligne
         if (payload.new?.id === currentUser?.id) {
           const u = payload.new;
           currentPrenom          = u.prenom          || '';
@@ -2234,16 +2244,12 @@
 
     // ── Changements sur les bilans ──
     const bilansChannel = supa.channel('rt-bilans')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bilans' }, async () => {
-        await loadBilans();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bilans' }, _rtHandleBilans)
       .subscribe();
 
     // ── Changements sur les patients ──
     const patientsChannel = supa.channel('rt-patients')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, async () => {
-        await loadPatients();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, _rtHandlePatients)
       .subscribe();
 
     realtimeChannels = [shiftsChannel, usersChannel, bilansChannel, patientsChannel];
@@ -3405,18 +3411,21 @@
     panel.innerHTML = userShifts.map(s => {
       const date  = new Date(s.start_time).toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
       const start = new Date(s.start_time).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-      const end   = s.end_time ? new Date(s.end_time).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '—';
-      const dur   = s.duration_minutes
-        ? `${Math.floor(s.duration_minutes/60)}h${s.duration_minutes%60 > 0 ? s.duration_minutes%60+'m' : ''}`
-        : 'En cours';
+      const isOpen = !s.end_time;
+      const end    = s.end_time ? new Date(s.end_time).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '—';
+      const durMin = s.duration_minutes || (s.end_time ? Math.round((new Date(s.end_time) - new Date(s.start_time)) / 60000) : null);
+      const dur    = isOpen
+        ? '<span style="color:#f59e0b;font-weight:700;">En cours</span>'
+        : (durMin ? `${Math.floor(durMin/60)}h${durMin%60 > 0 ? durMin%60+'m' : ''}` : '—');
       return `
         <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:7px 10px;background:rgba(255,255,255,.03);border:1px solid #1e293b;
+          padding:7px 10px;background:${isOpen ? 'rgba(245,158,11,.05)' : 'rgba(255,255,255,.03)'};
+          border:1px solid ${isOpen ? 'rgba(245,158,11,.25)' : '#1e293b'};
           border-radius:7px;margin-top:4px;gap:12px;">
           <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
             <span style="font-size:12px;color:#94a3b8;">${date}</span>
             <span style="font-size:12px;color:#64748b;">${start} → ${end}</span>
-            <span style="font-size:12px;font-weight:600;color:#6366f1;">${dur}</span>
+            <span style="font-size:12px;font-weight:600;color:${isOpen ? '#f59e0b' : '#6366f1'};">${dur}</span>
           </div>
           <button onclick="adminDeleteShift('${s.id}')"
             style="width:22px;height:22px;padding:0;background:rgba(239,68,68,.12);
