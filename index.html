@@ -2769,7 +2769,14 @@
       _respData[r.service_id] = Array.isArray(r.user_ids) ? r.user_ids : [];
     });
 
-    renderResponsables();
+    try {
+      renderResponsables();
+    } catch(e) {
+      const errEl = document.getElementById('responsables-grid');
+      errEl.textContent = 'Erreur JS : ' + e.message;
+      errEl.style.color = '#ef4444';
+      console.error('renderResponsables:', e);
+    }
   }
 
   const NON_DISPO_FLAG = '__non_disponible__';
