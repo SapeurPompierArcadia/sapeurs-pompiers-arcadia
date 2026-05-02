@@ -2828,7 +2828,7 @@
       } else {
         infoHtml = `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${isAdmin ? 10 : 0}px;">` +
           selectedUsers.map(u => {
-            const initials   = (u.prenom[0] + u.nom[0]).toUpperCase();
+            const initials   = ((u.prenom||'?')[0] + (u.nom||'?')[0]).toUpperCase();
             const avatarColor = RESP_GRADE_COLORS[u.grade] || '#6366f1';
             return `
               <div style="display:flex;align-items:center;gap:10px;">
@@ -2849,7 +2849,7 @@
       if (!s.soon) {
         const items = _respUsers.map(u => {
           const checked  = realIds.includes(u.id);
-          const initials = (u.prenom[0] + u.nom[0]).toUpperCase();
+          const initials = ((u.prenom||'?')[0] + (u.nom||'?')[0]).toUpperCase();
           const col      = RESP_GRADE_COLORS[u.grade] || '#6366f1';
           const disabled = !isAdmin;
           return `
